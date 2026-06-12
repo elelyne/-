@@ -7,7 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
     body { 
-        background-color: #f4f6f9; /* 🌟 讓全網頁底色統一成舒服的淺灰色 */
+        background-color: #f4f6f9; /* 讓全網頁底色統一成舒服的淺灰色 */
         font-family: 'Helvetica Neue', Arial, sans-serif; 
         overflow-x: hidden;
     }
@@ -23,17 +23,15 @@
         min-height: 100vh; 
         padding-bottom: 60px; 
     }
-
-    /* 💻 當螢幕是電腦版（大螢幕）時的「全網頁解鎖對策」 */
     @media (min-width: 576px) {
         .app-container {
-            max-width: 100% !important; /* 🌟 寬度直接解鎖到 100% 滿版！ */
-            background: transparent !important; /* 🌟 徹底扒光原本限制住你的大白底！ */
+            max-width: 100% !important; 
+            background: transparent !important; 
             background-color: transparent !important;
-            box-shadow: none !important; /* 🌟 拿掉外層死板的影子邊界 */
+            box-shadow: none !important; 
         }
     }
-    /* 📱 當螢幕是手機版時，自動縮回精緻的獨立 App 氛圍 */
+    /* 當螢幕是手機版時自動縮成手機比例 */
     @media (max-width: 575px) {
          .navbar-nav{
         display:flex;
