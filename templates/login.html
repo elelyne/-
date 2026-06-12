@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+    /* 🎯 限制登入卡片在大螢幕上的寬度，避免表單橫向過度拉伸 */
+    .login-card-wrapper {
+        max-width: 540px;
+        margin: 40px auto;
+        padding: 10px;
+    }
+
+    /* 💎 完美延用大廳的玻璃擬態卡片樣式 */
+    .login-glass-card {
+        background: var(--card-bg) !important;
+        backdrop-filter: blur(12px) saturate(180%);
+        -webkit-backdrop-filter: blur(12px) saturate(180%);
+        border: 1px solid var(--border-color) !important;
+        border-radius: 28px !important;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.05);
+        padding: 45px 40px;
+        transition: transform 0.3s ease;
+    }
+
+    /* 圓角輸入框與聚焦呼吸特效 */
+    .login-glass-card .form-control {
+        border-radius: 50px !important;
+        padding: 14px 22px;
+        font-size: 0.95rem;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        background-color: rgba(255, 255, 255, 0.5);
+        color: var(--text-color) !important;
+    }
+    
+    .login-glass-card .form-control:focus {
+        background-color: #ffffff;
+        border-color: #6f42c1;
+        box-shadow: 0 0 0 4px rgba(111, 66, 193, 0.15);
+    }
+
+    /* 舒適的大顆登入按鈕 */
+    .btn-login {
+        background-color: #6f42c1 !important;
+        color: white !important;
+        border: none;
+        border-radius: 50px !important;
+        padding: 14px;
+        font-size: 1.05rem;
+        font-weight: bold;
+        transition: all 0.2s ease;
+    }
+    .btn-login:hover {
+        background-color: #5a32a3 !important;
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(111, 66, 193, 0.3);
+    }
+
+    /* 為了相容深色主題，稍微調高標題顏色適應度 */
+    .theme-title {
+        color: var(--text-color) !important;
+    }
+</style>
+
+<div class="container login-card-wrapper">
+    <!-- 🎯 換上專屬的玻璃卡片外殼 -->
+    <div class="login-glass-card shadow-sm">
+        
+        <!-- 頂部標題區 -->
+        <div class="text-center mb-4">
+            <h3 class="fw-bold theme-title mb-2">✨ 歡迎回到心靈旅記</h3>
+            <p class="text-muted small">請輸入您的帳號密碼展開放鬆之旅</p>
+        </div>
+
+        <!-- 表單內容 -->
+        <form method="POST" action="/login">
+            <div class="mb-3">
+                <label class="form-label small fw-bold text-secondary ps-2">帳號 (Username)</label>
+                <input type="text" name="username" class="form-control" placeholder="請輸入帳號" required>
+            </div>
+            
+            <div class="mb-4">
+                <label class="form-label small fw-bold text-secondary ps-2">密碼 (Password)</label>
+                <input type="password" name="password" class="form-control" placeholder="請輸入密碼" required>
+            </div>
+            
+            <!-- 登入按鈕 -->
+            <button type="submit" class="btn btn-login w-100 mb-3 shadow-sm">
+                登入
+            </button>
+        </form>
+
+        <!-- 下方註冊導向 -->
+        <div class="text-center mt-3">
+            <span class="small text-muted">還沒有帳號嗎？</span>
+            <a href="/register" class="small fw-bold text-decoration-none ms-1" style="color: #6f42c1;">立即註冊 ✨</a>
+        </div>
+        
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MBTI 16型高階人格特質探測</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #070b19 0%, #0f172a 50%, #050510 100%);
+            --glass-bg: rgba(30, 41, 59, 0.4);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --color-agree: #2ec4b6;     /* 同意端的青綠色 */
+            --color-disagree: #ff3366;  /* 不同意端的桃紅色 */
+            --accent-purple: #8338ec;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 750px;
+            margin: 0 auto;
+        }
+
+        /* 頂部標題與說明 */
+        .mbti-header {
+            text-align: center;
+            margin-bottom: 45px;
+        }
+
+        .mbti-header h1 {
+            font-size: 2.4rem;
+            font-weight: 900;
+            background: linear-gradient(90deg, #00f2fe, #4facfe, var(--accent-purple));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+
+        .mbti-header p {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            line-height: 1.5;
+        }
+
+        /* 玻璃擬態共用卡片 */
+        .glass-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 24px;
+            padding: 35px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            transition: all 0.4s ease;
+        }
+
+        /* 題卡容器（分頁分題邏輯：每次呈現4題，寫起來最順暢舒服） */
+        .mbti-page-block {
+            display: none;
+        }
+
+        .mbti-page-block.active {
+            display: block;
+            animation: fadeIn 0.6s ease;
+        }
+
+        /* 題目區塊 */
+        .q-item-box {
+            text-align: center;
+            padding: 25px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .q-item-box:last-child {
+            border-bottom: none;
+        }
+
+        .q-text {
+            font-size: 1.25rem;
+            font-weight: 500;
+            line-height: 1.7;
+            margin-bottom: 25px;
+            color: #f1f5f9;
+        }
+
+        /* ✨ 核心：16Personalities 五點量表網狀網格 UI */
+        .likert-scale {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 25px;
+            margin: 15px 0;
+        }
+
+        .scale-label {
+            font-size: 0.9rem;
+            font-weight: bold;
+            user-select: none;
+        }
+
+        .scale-label.agree { color: var(--color-agree); }
+        .scale-label.disagree { color: var(--color-disagree); }
+
+        /* 圓圈點選器 */
+        .circle-option {
+            appearance: none;
+            -webkit-appearance: none;
+            border-radius: 50%;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-block;
+            vertical-align: middle;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* 依據大中小分流尺寸與光暈色彩 */
+        .circle-option.size-max-agree {
+            width: 44px; height: 44px; border: 3px solid var(--color-agree);
+        }
+        .circle-option.size-max-agree:checked { background: var(--color-agree); box-shadow: 0 0 20px var(--color-agree); }
+
+        .circle-option.size-mid-agree {
+            width: 32px; height: 32px; border: 2.5px solid var(--color-agree); opacity: 0.8;
+        }
+        .circle-option.size-mid-agree:checked { background: var(--color-agree); box-shadow: 0 0 12px var(--color-agree); opacity: 1; }
+
+        .circle-option.size-neutral {
+            width: 24px; height: 24px; border: 2px solid #64748b;
+        }
+        .circle-option.size-neutral:checked { background: #64748b; box-shadow: 0 0 8px #64748b; }
+
+        .circle-option.size-mid-disagree {
+            width: 32px; height: 32px; border: 2.5px solid var(--color-disagree); opacity: 0.8;
+        }
+        .circle-option.size-mid-disagree:checked { background: var(--color-disagree); box-shadow: 0 0 12px var(--color-disagree); opacity: 1; }
+
+        .circle-option.size-max-disagree {
+            width: 44px; height: 44px; border: 3px solid var(--color-disagree);
+        }
+        .circle-option.size-max-disagree:checked { background: var(--color-disagree); box-shadow: 0 0 20px var(--color-disagree); }
+
+        .circle-option:hover {
+            transform: scale(1.15);
+        }
+
+        /* 控制按鈕 */
+        .control-btns {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 25px;
+        }
+
+        .action-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            padding: 14px 28px;
+            border-radius: 14px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .action-btn:hover:not(:disabled) {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: #38bdf8;
+            transform: translateY(-2px);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .action-btn.primary {
+            background: linear-gradient(135deg, #0284c7 0%, var(--accent-purple) 100%);
+            border: none;
+            font-weight: bold;
+        }
+
+        .action-btn.primary:hover {
+            box-shadow: 0 0 20px rgba(131, 56, 236, 0.5);
+        }
+
+        /* 底部進度指示器 */
+        .bottom-indicator {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .indicator-progress-bg {
+            width: 100%; height: 5px; background: rgba(255, 255, 255, 0.03); margin-top: 10px; border-radius: 10px; overflow: hidden;
+        }
+        .indicator-progress-fill {
+            width: 0%; height: 100%; background: linear-gradient(90deg, var(--color-agree), #38bdf8); transition: width 0.4s ease;
+        }
+
+        /* =====================================================================
+           🎯 MBTI 宣判結果報告畫面樣式（預設隱藏）
+           ===================================================================== */
+        #mbti-result-container {
+            display: none;
+            animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .coin-alert {
+            background: linear-gradient(90deg, #d4af37, #f3e5ab);
+            color: #2c1d00;
+            padding: 16px; border-radius: 16px; text-align: center; font-weight: bold; margin-bottom: 30px;
+            display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 0 25px rgba(212, 175, 55, 0.3);
+        }
+
+        .result-main-card {
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .result-main-card::before {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(131, 56, 236, 0.12) 0%, transparent 60%); pointer-events: none;
+        }
+
+        .mbti-code-title {
+            font-size: 4.5rem;
+            font-weight: 900;
+            letter-spacing: 6px;
+            background: linear-gradient(45deg, #00f2fe, #38bdf8, #ec4899, #8338ec);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 5px 0;
+            filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.2));
+        }
+
+        .section-title {
+            font-size: 1.25rem; font-weight: bold; color: #38bdf8; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;
+        }
+
+        /* 四維度雙向平衡天平進度條 */
+        .mbti-balance-row {
+            margin-bottom: 25px;
+        }
+        .balance-labels {
+            display: flex; justify-content: space-between; font-size: 1rem; font-weight: 500; margin-bottom: 8px;
+        }
+        .balance-track {
+            width: 100%; height: 14px; background: rgba(255, 255, 255, 0.05); border-radius: 50px; overflow: hidden; position: relative;
+        }
+        /* 天平的左右染色分流 */
+        .balance-fill {
+            height: 100%; width: 50%; background: #4facfe; border-radius: 50px; transition: all 1.5s cubic-bezier(0.1, 1, 0.1, 1);
+        }
+        /* 當判定屬於右側特質時，讓填滿條靠右貼齊 */
+        .balance-fill.align-right {
+            margin-left: auto;
+            background: #f43f5e;
+        }
+
+        /* 職業卡片佈局 */
+        .job-grid {
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .job-card {
+            background: rgba(56, 189, 248, 0.04); border: 1px solid rgba(56, 189, 248, 0.12);
+            padding: 16px 20px; border-radius: 14px; font-size: 1.05rem; display: flex; align-items: center; gap: 12px; transition: all 0.2s;
+        }
+        .job-card:hover {
+            background: rgba(56, 189, 248, 0.1); transform: translateX(6px); border-color: #38bdf8;
+        }
+
+        .advice-box {
+            background: rgba(255, 255, 255, 0.01); border-left: 4px solid var(--accent-purple); padding: 14px 20px; margin-bottom: 12px; border-radius: 0 12px 12px 0; line-height: 1.6; color: #cbd5e1;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(50px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <div id="mbti-quiz-panel">
+        <div class="mbti-header">
+            <h1>MBTI人格探測</h1>
+            <p>橫跨能量、感知、決策與生活四大星雲，勾勒出你最本質的精神圖騰</p>
+        </div>
+
+        <form id="mbtiForm">
+            {% if questions %}
+                {% for q in questions %}
+                    {% if loop.index0 % 4 == 0 %}
+                        <div class="glass-card mbti-page-block {% if loop.first %}active{% endif %}" id="page-{{ loop.index0 // 4 }}">
+                    {% endif %}
+                    
+                    <div class="q-item-box" data-qid="{{ q.id }}">
+                        <div class="q-text">{{ loop.index }}. {{ q.text }}</div>
+                        
+                        <div class="likert-scale">
+                            <span class="scale-label agree">同意</span>
+                            
+                            <input type="radio" name="q_{{ q.id }}" value="0" class="circle-option size-max-agree" required onclick="checkPageCompletion()">
+                            <input type="radio" name="q_{{ q.id }}" value="1" class="circle-option size-mid-agree" onclick="checkPageCompletion()">
+                            <input type="radio" name="q_{{ q.id }}" value="2" class="circle-option size-neutral" onclick="checkPageCompletion()">
+                            <input type="radio" name="q_{{ q.id }}" value="3" class="circle-option size-mid-disagree" onclick="checkPageCompletion()">
+                            <input type="radio" name="q_{{ q.id }}" value="4" class="circle-option size-max-disagree" onclick="checkPageCompletion()">
+                            
+                            <span class="scale-label disagree">不同意</span>
+                        </div>
+                    </div>
+
+                    {% if loop.index0 % 4 == 3 or loop.last %}
+                        </div> {% endif %}
+                {% endfor %}
+            {% endif %}
+        </form>
+
+        <div class="control-btns">
+            <button type="button" class="action-btn" id="prevBtn" onclick="changePage(-1)" disabled>
+                <i class="fa-solid fa-arrow-left"></i> 上一頁
+            </button>
+            <button type="button" class="action-btn primary" id="nextBtn" onclick="changePage(1)" disabled>
+                下一頁 <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+
+        <div class="bottom-indicator">
+            <span id="progress-text">進度：第 1 / 14 頁</span>
+            <div class="indicator-progress-bg">
+                <div class="indicator-progress-fill" id="indicator-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="mbti-result-container">
+        
+        <div class="coin-alert">
+            <i class="fa-solid fa-jedi fa-spin" style="font-size:1.3rem;"></i>
+            <span>測驗完成！已發放$50金幣獎勵至您的錢包！</span>
+        </div>
+
+        <div class="glass-card result-main-card">
+            <h2 id="res-mbti-title" style="font-size:1.6rem; font-weight:700; color:#cbd5e1;"></h2>
+            <div class="mbti-code-title" id="res-mbti-code">INTJ</div>
+            <h4 id="res-mbti-alias" style="color:var(--color-agree); letter-spacing:2px; font-size:1.2rem; margin-bottom:15px;"></h4>
+            <p id="res-mbti-desc" style="line-height:1.7; color:#cbd5e1; font-size:1.02rem; text-align:justify; max-width:640px; margin:0 auto;"></p>
+        </div>
+
+        <div class="glass-card">
+            <div class="section-title"><i class="fa-solid fa-sliders"></i> 特質能量分布</div>
+            <div id="mbti-balance-axis-container">
+                </div>
+        </div>
+
+        <div class="glass-card">
+    <div class="section-title">
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        命定天職：高契合度職業
+    </div>
+
+    <div class="job-grid" id="res-mbti-jobs"></div>
+</div>
+
+<div class="glass-card">
+    <div class="section-title">
+        <i class="fa-solid fa-brain"></i>
+        人格發展建議
+    </div>
+
+    <div id="res-mbti-advice"></div>
+</div>
+        <div class="text-center mt-5">
+            <a href="/m" class="btn btn-outline-secondary px-4 me-2" style="border-radius: 20px;">重新測驗</a>
+            <a href="/lobby" class="btn btn-secondary px-4" style="border-radius: 20px;">返回大廳</a>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    let currentPage = 0;
+    const totalPages = Math.ceil(parseInt("{{ questions|length }}") / 4) || 14;
+
+    document.addEventListener("DOMContentLoaded", () => {
+        updateProgressIndicator();
+    });
+
+    // 🕵️ 核心防呆：檢查當前分頁的 4 道題目是否都被妥善勾選了
+    function checkPageCompletion() {
+        const pageBox = document.getElementById(`page-${currentPage}`);
+        if (!pageBox) return false;
+
+        // 撈出當前頁面有多少個獨立的題目方塊
+        const qItems = pageBox.querySelectorAll('.q-item-box');
+        let allChecked = true;
+
+        qItems.forEach(item => {
+            const qid = item.getAttribute('data-qid');
+            const checkedRadio = pageBox.querySelector(`input[name="q_${qid}"]:checked`);
+            if (!checkedRadio) {
+                allChecked = false; // 只要有一題沒選，就不能解鎖按鈕
+            }
+        });
+
+        // 根據檢查結果，動態點亮或熄滅「下一頁」或「送出測驗」按鈕
+        const nextBtn = document.getElementById('nextBtn');
+        if (allChecked) {
+            nextBtn.removeAttribute('disabled');
+            if (currentPage === totalPages - 1) {
+                nextBtn.innerHTML = `翻開精神圖騰 <i class="fa-solid fa-paper-plane"></i>`;
+            }
+        } else {
+            nextBtn.setAttribute('disabled', 'true');
+        }
+        return allChecked;
+    }
+
+    // 翻頁控制邏輯
+    function changePage(direction) {
+        // 如果是最後一頁且點擊「下一步」，代表要正式自動封包提交答案
+        if (currentPage === totalPages - 1 && direction === 1) {
+            submitMbtiQuiz();
+            return;
+        }
+
+        // 隱藏目前頁面
+        document.getElementById(`page-${currentPage}`).classList.remove('active');
+        
+        // 增減頁碼
+        currentPage += direction;
+        
+        // 活化目標新頁面
+        document.getElementById(`page-${currentPage}`).classList.add('active');
+
+        // 處理左側「上一頁」按鈕點亮狀態
+        document.getElementById('prevBtn').disabled = (currentPage === 0);
+
+        // 重置並檢查新一頁的按鈕解鎖狀態
+        const isNextComplete = checkPageCompletion();
+        const nextBtn = document.getElementById('nextBtn');
+        if (currentPage === totalPages - 1) {
+            nextBtn.innerHTML = isNextComplete ? `翻開精神圖騰 <i class="fa-solid fa-paper-plane"></i>` : `請完成本頁填選`;
+        } else {
+            nextBtn.innerHTML = `下一頁 <i class="fa-solid fa-arrow-right"></i>`;
+        }
+
+        updateProgressIndicator();
+        // 順暢滾動回頂端，優化答題體驗
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // 更新下方頁碼文字與寬度進度條
+    function updateProgressIndicator() {
+        document.getElementById('progress-text').innerText = `進度：第 ${currentPage + 1} / ${totalPages} 頁`;
+        const percent = ((currentPage + 1) / totalPages) * 100;
+        document.getElementById('indicator-fill').style.width = percent + '%';
+    }
+
+    // 封包打包器與 AJAX 異步提交
+    function submitMbtiQuiz() {
+        // 1. 抓取表單原始資料並轉成純 JSON 字典
+        const formElement = document.getElementById('mbtiForm');
+        const formData = new FormData(formElement);
+        let answersPayload = {};
+
+        for (let [key, value] of formData.entries()) {
+            // 將原本 "q_1" 轉成字串 "1" 作為 Key 送給 Python
+            const cleanKey = key.replace('q_', '');
+            answersPayload[cleanKey] = parseInt(value);
+        }
+
+        // 2. 拔除舊面版，展示具備宇宙科幻質感的運算中防呆動畫
+        document.getElementById('mbti-quiz-panel').innerHTML = `
+            <div class="glass-card" style="text-align:center; padding:60px 40px;">
+                <i class="fa-solid fa-atom fa-spin" style="font-size:3.5rem; color:#38bdf8; margin-bottom:25px;"></i>
+                <h2 style="letter-spacing:1px;">計算中...</h2>
+                <p style="color:var(--text-muted); margin-top:10px; font-size:0.95rem;">正在解密您的靈魂特質</p>
+            </div>
+        `;
+
+        // 3. 正式發送 POST 請求給剛剛在後端 app.py 寫好的全新路由路徑
+        fetch('/m/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ answers: answersPayload })
+        })
+        .then(response => {
+            if (!response.ok) throw new Error("伺服器端無效回應，狀態碼: " + response.status);
+            return response.json();
+        })
+        .then(data => {
+           console.log("MBTI結果", data);
+
+            if (data.success) {
+                renderMbtiResult(data);
+            } else {
+                alert("特質分析發生異常：" + data.message);
+                window.location.reload();
+            }
+             })
+            .catch(error => {
+            console.error("提交錯誤:", error);
+            alert("系統時空鏈接發生錯誤，請稍後再試！");
+        });
+    }
+
+    // 🔮 核心渲染引擎：將豐富的 MBTI 結果，流暢注入對應 DOM 中
+    function renderMbtiResult(data) {
+        // 隱藏題目外殼，高調亮出結果報告
+        document.getElementById('mbti-quiz-panel').style.display = 'none';
+        const resultPanel = document.getElementById('mbti-result-container');
+        resultPanel.style.display = 'block';
+
+        // 注入大核心人格資料
+        document.getElementById('res-mbti-title').innerText = data.meta.title;
+        document.getElementById('res-mbti-code').innerText = data.mbti_code;
+        document.getElementById('res-mbti-alias').innerText = `— 【 ${data.meta.alias} 】 —`;
+        document.getElementById('res-mbti-desc').innerText = data.meta.desc;
+
+        // ⚡ 動態生成四維度雙向平衡天平圖表
+        const axisContainer = document.getElementById('mbti-balance-axis-container');
+        axisContainer.innerHTML = ''; // 清空
+
+        // 後端傳回的 chart_data 結構包含了 EI, SN, TF, JP 三組維度
+        const axisKeys = ["EI", "SN", "TF", "JP"];
+        const leftLabels = { "EI": "E 外向", "SN": "S 實感", "TF": "T 思考", "JP": "J 判斷" };
+        const rightLabels = { "EI": "I 內向", "SN": "N 直覺", "TF": "F 情感", "JP": "P 感知" };
+
+        axisKeys.forEach(key => {
+            const axisInfo = data.chart_data[key]; // 包含 lead, name, percent
+            const isRightSide = (axisInfo.lead === "I" || axisInfo.lead === "N" || axisInfo.lead === "F" || axisInfo.lead === "P");
+            
+            const row = document.createElement('div');
+            row.className = 'mbti-balance-row';
+            row.innerHTML = `
+                <div class="balance-labels">
+                    <span style="color: ${!isRightSide ? 'var(--color-agree)' : 'var(--text-muted)'}; font-weight: ${!isRightSide ? '700' : '400'}">${leftLabels[key]}</span>
+                    <span style="color: #38bdf8; font-size:0.9rem;">主導特質：${axisInfo.name} (${axisInfo.percent}%)</span>
+                    <span style="color: ${isRightSide ? 'var(--color-disagree)' : 'var(--text-muted)'}; font-weight: ${isRightSide ? '700' : '400'}">${rightLabels[key]}</span>
+                </div>
+                <div class="balance-track">
+                    <div class="balance-fill ${isRightSide ? 'align-right' : ''}" data-target-width="${axisInfo.percent}"></div>
+                </div>
+            `;
+            axisContainer.appendChild(row);
+        });
+
+        // 注入天職職業卡片清單
+        const jobsWrapper = document.getElementById('res-mbti-jobs');
+        jobsWrapper.innerHTML = '';
+        data.meta.jobs.forEach(job => {
+            const card = document.createElement('div');
+            card.className = 'job-card';
+            card.innerHTML = `<i class="fa-solid fa-meteor" style="color:#38bdf8;"></i> <span>${job}</span>`;
+            jobsWrapper.appendChild(card);
+        });
+
+        // 注入身心交叉點評建議
+        const adviceWrapper = document.getElementById('res-mbti-advice');
+
+if (adviceWrapper && data.report && data.report.advice) {
+
+    adviceWrapper.innerHTML = '';
+
+    data.report.advice.forEach(text => {
+        const box = document.createElement('div');
+        box.className = 'advice-box';
+        box.innerText = text;
+        adviceWrapper.appendChild(box);
+    });
+
+}
+
+        // 💫 觸發雙向平衡長條圖的動態拉伸特效
+        setTimeout(() => {
+            const fills = document.querySelectorAll('.balance-fill');
+            fills.forEach(bar => {
+                const targetW = bar.getAttribute('data-target-width');
+                bar.style.width = targetW + '%';
+            });
+        }, 150);
+    }
+</script>
+
+</body>
+</html>

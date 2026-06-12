@@ -1,0 +1,997 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+    /* ==========================================================================
+       🎨 全域主題與背景變數
+       ========================================================================== */
+    :root, [data-theme="default"] {
+        --main-bg: linear-gradient(135deg, #e0f2fe 0%, #ccfbf1 50%, #e0e7ff 100%);
+        --card-bg: rgba(255, 255, 255, 0.7);
+        --text-color: #1e293b;
+        --accent-color: #0369a1;
+        --border-color: rgba(255, 255, 255, 0.5);
+    }
+    [data-theme="dark"] {
+        --main-bg: radial-gradient(circle at top right, #2d3748, #1a202c);
+        --card-bg: rgba(30, 30, 40, 0.8);
+        --text-color: #f7fafc;
+        --accent-color: #63b3ed;
+        --border-color: rgba(255, 255, 255, 0.1);
+    }
+    [data-theme="pink"] {
+        --main-bg: linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%);
+        --card-bg: rgba(255, 255, 255, 0.6);
+        --text-color: #831843;
+        --accent-color: #db2777;
+        --border-color: rgba(255, 192, 203, 0.4);
+    }
+
+    /* 🟢 修正：只在電腦版（大螢幕）才把外框撐開到 1280px，不影響 base.html 的手機版設定 */
+    @media (min-width: 576px) {
+        .app-container {
+            max-width: 1280px !important; 
+            width: 100% !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            margin-top: 20px;
+        }
+    }
+
+    body {
+        background: var(--main-bg) !important;
+        background-attachment: fixed !important;
+        color: var(--text-color) !important;
+        transition: background 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        min-height: 100vh;
+    }
+
+    /* 💎 玻璃擬態卡片樣式 */
+    .glass-card {
+        background: var(--card-bg) !important;
+        backdrop-filter: blur(12px) saturate(180%);
+        -webkit-backdrop-filter: blur(12px) saturate(180%);
+        border: 1px solid var(--border-color) !important;
+        border-radius: 24px !important;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        overflow: hidden;
+    }
+    .glass-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+    }
+
+    /* 自訂下拉選單 (主題選擇器) */
+    .theme-dropdown-container { position: relative; display: inline-block; }
+    .custom-dropdown-menu {
+        display: none;
+        position: absolute;
+        top: 55px;
+        left: 0;
+        background: var(--card-bg);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--border-color);
+        border-radius: 15px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        min-width: 200px;
+        z-index: 1050;
+        padding: 8px;
+    }
+    .custom-dropdown-menu.show { display: block !important; }
+    .theme-opt {
+        padding: 12px 15px;
+        margin: 4px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--text-color);
+        transition: 0.2s;
+    }
+    .theme-opt:hover { background: rgba(0,0,0,0.05); }
+
+    .btn-pill { border-radius: 50px; font-weight: bold; padding: 8px 20px; }
+    .stat-badge { background: rgba(255,255,255,0.4); border: 1px solid rgba(0,0,0,0.05); }
+    
+    /* 📅 日曆網格布局修復 */
+    .calendar-grid-row {
+        display: flex;
+        text-align: center;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    .calendar-col {
+        flex: 1;
+        width: 14.28%;
+        font-size: 0.9rem;
+    }
+
+    /* 🌟 修正：Class 名稱改成跟 HTML 一致的 image-marquee-wrapper */
+    .image-marquee-wrapper {
+        overflow: hidden !important; /* 徹底鎖死，絕對不准超出螢幕！ */
+        width: 100%;
+        height: 140px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        position: relative;
+        display: block;              
+    }
+
+    /* 軌道 */
+    .image-marquee-track {
+        width: max-content;
+        height: 100%;
+    }
+
+    /* 照片火車頭 */
+    .image-marquee-group {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center;
+        gap: 20px;                   
+        height: 100%;
+        width: max-content;          
+        animation: singleGroupMarqueePerfect 20s linear infinite;
+    }
+
+    /* 📸 照片比例與樣式鎖死保險 */
+    .image-marquee-group img {
+        height: 100px !important;
+        width: auto !important;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+
+    .image-marquee-wrapper:hover .image-marquee-group {
+        animation-play-state: paused;
+    }
+
+    @keyframes singleGroupMarqueePerfect {
+        0% {
+            transform: translate3d(100%, 0, 0); /* 修正：用 100% 代替 100vw，在小螢幕滾動更平滑穩定 */
+        }
+        100% {
+            transform: translate3d(-100%, 0, 0); 
+        }
+    }
+</style>
+
+<span id="checkin-flag" data-value="{{ 'true' if has_checked_in else 'false' }}" style="display: none;"></span>
+
+<div class="container-fluid px-4 py-3">
+    <div class="image-marquee-wrapper mb-4">
+        <div class="image-marquee-track">
+        <div class="image-marquee-group" aria-hidden="true">
+            <img src="/static/images/17.jpg" alt="相片1">
+            <img src="/static/images/172.jpg" alt="相片2">
+            <img src="/static/images/4.jpg" alt="相片3">
+            <img src="/static/images/aespa.jpg" alt="相片4">
+            <img src="/static/images/itzy.jpg" alt="相片5">
+            <img src="/static/images/nmixx2.jpg" alt="相片6">
+              <img src="/static/images/球.jpg" alt="相片7">
+            <img src="/static/images/鬼滅.jpg" alt="相片8">
+            <img src="/static/images/日.jpg" alt="相片9">
+            <img src="/static/images/咒.jpg" alt="相片10">
+            <img src="/static/images/獨.jpg" alt="相片11">
+            <img src="/static/images/英.jpg" alt="相片12">
+            <img src="/static/images/花.jpg" alt="相片13">
+            <img src="/static/images/日2.jpg" alt="相片14">
+            <img src="/static/images/日3.jpg" alt="相片15">
+            <img src="/static/images/指尖.jpg" alt="相片16">
+            
+        </div>
+        
+    </div>
+</div>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div class="d-flex align-items-center gap-3">
+            <div class="theme-dropdown-container">
+                <button class="btn glass-card rounded-circle d-flex align-items-center justify-content-center shadow-sm" 
+                        onclick="toggleThemeDropdown(event)"
+                        style="width: 50px; height: 50px; font-size: 20px; color: var(--text-color);">
+                    🎨
+                </button>
+                <div class="custom-dropdown-menu" id="myThemeMenu">
+                    <div class="px-3 py-2 small fw-bold opacity-75">切換背景風格</div>
+                    <div class="theme-opt" onclick="changeTheme('default')">預設</div>
+                    <div class="theme-opt" onclick="changeTheme('dark')">深色</div>
+                    <div class="theme-opt" onclick="changeTheme('pink')">粉紅</div>
+                </div>
+            </div>
+            <div>
+                <h3 class="mb-0 fw-bold fs-4 fs-sm-3"> {% if user.image %}<img src="{{ user.image }}" class="rounded-circle me-2" style="width: 40px; height: 40px; object-fit: cover;">{% endif %}
+                    {{ user.nickname }} 的秘密空間
+                </h3>
+                <small class="opacity-75">讓靈魂在此安靜休息一下</small>
+            </div>
+        </div>
+        
+        <div class="d-flex gap-2 align-items-center ms-auto ms-sm-0">
+            <div class="glass-card stat-badge px-3 py-2 rounded-pill fw-bold">
+                💰 <span id="coin-count">{{ user.coins }}</span>
+            </div>
+            {% if has_checked_in %}
+                <button class="btn btn-success btn-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#checkinModal">
+                    ✅ 已簽到
+                </button>
+            {% else %}
+                <button class="btn btn-primary btn-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#checkinModal">
+                    📅 每日簽到
+                </button>
+            {% endif %}
+        </div>
+    </div>
+<div class="row g-3 mb-5 text-center">
+    <div class="col-md-4">
+        <a href="/daily_task" class="glass-card d-block p-4 text-decoration-none text-reset">
+            <div class="fs-2 mb-2">📝</div>
+            <div class="fw-bold">每日健康任務</div>
+            <div class="small opacity-75">紀錄飲水與步數</div>
+        </a>
+    </div>
+
+    <div class="col-md-4">
+        <a href="/quiz" style="display: block; padding: 24px; background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(10px); border-radius: 24px; text-decoration: none; border: 1px solid var(--border-color); height: 100%;">
+            <div style="margin-bottom: 12px; display: flex; justify-content: center;">
+                <img src="../static/images/stress.png" alt="小插圖" style="width: 50px; height: 50px; object-fit: contain; display: block;">
+            </div>
+            <div style="font-weight: bold; color: #dc3545; font-size: 16px; margin-bottom: 4px;">每日情緒壓力診斷</div>
+            <div style="color: var(--text-color); font-size: 14px;" class="opacity-75">解析你的核心人格</div>
+        </a>
+    </div>
+
+    <div class="col-md-4">
+        <a href="/h" class="glass-card d-block p-4 text-decoration-none text-reset" style="background: rgba(220, 53, 69, 0.1) !important;">
+            <div class="mb-2">
+                <img src="../static/images/Holland.png" alt="Holland" style="width: 50px; height: 50px; object-fit: contain;">
+            </div>
+            <div class="fw-bold" style="color: #dc3545;">Holland何倫碼</div>
+            <div class="small opacity-75">興趣量表-探索適合的工作環境與職涯方向</div>
+        </a>
+    </div>
+
+    <div class="col-md-4">
+        <a href="/m" class="glass-card d-block p-4 text-decoration-none text-reset" style="background: rgba(220, 53, 69, 0.1) !important;">
+            <div class="mb-2">
+                <img src="../static/images/mbti.png" alt="MBTI" style="width: 50px; height: 50px; object-fit: contain;">
+            </div>
+            <div class="fw-bold" style="color: #dc3545;">MBTI</div>
+            <div class="small opacity-75">解鎖屬於你的16型人格</div>
+        </a>
+    </div>
+
+    <div class="col-md-4">
+        <a href="/o" class="glass-card d-block p-4 text-decoration-none text-reset" style="background: rgba(220, 53, 69, 0.1) !important;">
+            <div class="mb-2">
+                <img src="../static/images/5.png" alt="MBTI" style="width: 50px; height: 50px; object-fit: contain;">
+            </div>
+            <div class="fw-bold" style="color: #dc3545;">五大人格特質</div>
+            <div class="small opacity-75">解析你的人格特質，了解真實的你</div>
+        </a>
+    </div>
+    
+
+    <div class="col-md-4">
+        <a href="/tarot" class="glass-card d-block p-4 text-decoration-none text-reset" style="background: rgba(111, 66, 193, 0.1) !important;">
+            <div class="fs-2 mb-2">🔮</div>
+            <div class="fw-bold" style="color: #6f42c1;">AI 塔羅占卜</div>
+            <div class="small opacity-75">探索今日內心指引</div>
+        </a>
+    </div>
+</div>
+    
+
+</div>
+    <div class="row g-4 mb-4">
+        <div class="col-lg-8 col-12">
+            <div class="glass-card h-100 p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0">🛋️ 私人放鬆客廳</h5>
+                    <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3 py-2">獨享空間</span>
+                </div>
+                
+                <div class="ratio ratio-16x9 rounded-4 overflow-hidden border shadow-inner">
+                    <iframe id="lobby-bg-video" src="{{ default_video }}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+                </div>
+                <div class="mt-3 p-3 rounded-4 bg-white bg-opacity-25 border border-white border-opacity-50">
+                    <p class="mb-0 small fw-bold">💡 溫馨提示：您可以透過金幣商店更換這裡的背景音樂或環境影片喔！</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 col-12">
+            <div class="d-flex flex-column gap-4 h-100">
+                
+                <div class="glass-card p-4 flex-fill id-connect-card">
+                    <h5 class="fw-bold mb-2">👥 跨時空連線</h5>
+                    
+                    {% if user.invite_code %}
+                    <div class="alert alert-light p-2 mb-3 text-center small rounded-3 border-dashed" style="border: 1px dashed #6f42c1; background: rgba(255,255,255,0.3);">
+                        你的宇宙邀請碼：<strong style="color: #6f42c1; font-size: 1rem;">{{ user.invite_code }}</strong>
+                    </div>
+                    {% endif %}
+
+                    <div class="input-group mb-2">
+                        <input type="text" id="friendInput" class="form-control rounded-start-pill border-0 px-3" placeholder="輸入好友暱稱或邀請碼" style="background: rgba(255,255,255,0.4);">
+                        <button class="btn btn-success rounded-end-pill px-4" type="button" onclick="sendInvitation()">邀約</button>
+                    </div>
+                    
+                    <div id="invitation-box" class="alert alert-warning p-2 mt-3 small rounded-3 shadow-sm" style="display: none; background: rgba(255, 193, 7, 0.25); border: 1px solid rgba(255, 193, 7, 0.4);">
+                        <div class="fw-bold text-warning-dark mb-1">📬 收到時空連線請求：</div>
+                        <div id="invitation-list" class="d-flex flex-column gap-2">
+                            </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <div class="text-center opacity-75 small py-2" id="connection-status">
+                            暫無線上好友，快去邀請吧！
+                        </div>
+                        <div id="friends-list" class="d-flex flex-column gap-2" style="display: none;">
+                            </div>
+                    </div>
+                    <a href="/game" class="btn btn-danger fw-bold rounded-pill mt-2">🎵 進入節奏派對</a>
+                    
+                </div>
+
+                <div class="glass-card p-4 flex-fill">
+<div class="card p-3 shadow-sm border-0 mb-4" style="border-radius: 16px; background: #ffffff;">
+    <h5 class="fw-bold mb-2 d-flex align-items-center gap-2">
+        🛒 療癒補給站
+    </h5>
+    <p class="text-muted small mb-3">選擇喜歡的風格，一秒切換大廳背景影片。</p>
+    
+    <div class="d-flex flex-column gap-2">
+        
+        <div class="dropdown">
+            <button class="btn btn-light w-100 py-2.5 fw-bold text-start d-flex justify-content-between align-items-center dropdown-toggle shadow-sm border-0" 
+                    type="button" id="sceneDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+                    style="border-radius: 12px; background: #f8f9fa;">
+                <span>🎥 預設影集場景</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end border-0 shadow p-2" aria-labelledby="sceneDropdown" 
+                style="border-radius: 16px; min-width: 200px; max-height: 150px; overflow-y: auto; overflow-x: hidden;">
+                <li><a class="dropdown-item rounded-3 py-2 fw-bold text-success" href="#" onclick="localStorage.removeItem('current-lobby-video'); buyMedia(0, 'https://www.youtube.com/embed/aqz-KE-bpKQ', '預設動畫')">🐰 恢復預設動畫 <span class="badge bg-success text-white float-end">免費</span></a></li>
+            </ul>
+        </div>
+        
+        <div class="dropdown">
+            <button class="btn btn-light w-100 py-2.5 fw-bold text-start d-flex justify-content-between align-items-center dropdown-toggle shadow-sm border-0" 
+                    type="button" id="vlogDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+                    style="border-radius: 12px; background: #f8f9fa;">
+                <span>✈️ 旅遊日記系列</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end border-0 shadow p-2" aria-labelledby="vlogDropdown" 
+                style="border-radius: 16px; min-width: 200px; max-height: 150px; overflow-y: auto; overflow-x: hidden;">
+                <li><a class="dropdown-item rounded-3 py-2 fw-bold" href="#" onclick="buyMedia(0, 'https://www.youtube.com/embed/MP7pMT6gUgA', '台灣旅遊')">🇹🇼 台灣 (Taiwan) <span class="badge bg-light text-dark float-end">免費</span></a></li>
+                <li><a class="dropdown-item rounded-3 py-2 fw-bold" href="#" onclick="buyMedia(0, 'https://www.youtube.com/embed/2QJkUhpX7P4', '韓國旅遊')">🇰🇷 韓國 (Korea) <span class="badge bg-light text-dark float-end">免費</span></a></li>
+                <li><a class="dropdown-item rounded-3 py-2 fw-bold" href="#" onclick="buyMedia(0, 'https://www.youtube.com/embed/n_PxJ2PyecI', '日本旅遊')">🇯🇵 日本 (Japan) <span class="badge bg-light text-dark float-end">免費</span></a></li>
+                <li><a class="dropdown-item rounded-3 py-2 fw-bold" href="#" onclick="buyMedia(0, 'https://www.youtube.com/embed/PCSqrpAWq1s', '冰島旅遊')">🇮🇸 冰島 (Iceland) <span class="badge bg-light text-dark float-end">免費</span></a></li>
+            </ul>
+        </div>
+
+        <div class="dropdown">
+            <button class="btn btn-light w-100 py-2.5 fw-bold text-start d-flex justify-content-between align-items-center dropdown-toggle shadow-sm border-0" 
+                    type="button" id="musicDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+                    style="border-radius: 12px; background: #f8f9fa;">
+                <span>🎵 療癒音樂特輯</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end border-0 shadow p-2" aria-labelledby="musicDropdown" 
+                style="border-radius: 16px; min-width: 200px; max-height: 150px; overflow-y: auto; overflow-x: hidden;">
+                <li><a class="dropdown-item rounded-3 py-2 fw-bold" href="#" onclick="buyMedia(100, 'https://www.youtube.com/embed/RXPQjMoRjFE', '鄧紫棋')">🎤 華語 - 鄧紫棋 <span class="badge bg-secondary float-end">💰 100</span></a></li>
+                <li><a class="dropdown-item rounded-3 py-2 fw-bold" href="#" onclick="buyMedia(100, 'https://www.youtube.com/embed/jVvdnNHvr2M', '林俊傑')">🎤 華語 - 林俊傑 <span class="badge bg-secondary float-end">💰 100</span></a></li>
+                <li><a class="dropdown-item rounded-3 py-2 fw-bold" href="#" onclick="buyMedia(100, 'https://www.youtube.com/embed/UB5Rxiazxeg', '大穎')">🎤 華語 - 大穎 <span class="badge bg-secondary float-end">💰 100</span></a></li>
+                <li><a class="dropdown-item rounded-3 py-2 fw-bold" href="#" onclick="buyMedia(100, 'https://www.youtube.com/embed/gEtXosS4FPQ', '艾薇')">🎤 華語 - 艾薇 <span class="badge bg-secondary float-end">💰 100</span></a></li>
+            </ul>
+        </div>
+
+        <div class="dropdown">
+            <button class="btn btn-light w-100 py-2.5 fw-bold text-start d-flex justify-content-between align-items-center dropdown-toggle shadow-sm border-0" 
+                    type="button" id="relaxationDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+                    style="border-radius: 12px; background: #f8f9fa;">
+                <span>✨ 靜謐放鬆系列</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end border-0 shadow p-2" aria-labelledby="relaxationDropdown" 
+                style="border-radius: 16px; min-width: 200px; max-height: 150px; overflow-y: auto; overflow-x: hidden;">
+                <li><a class="dropdown-item rounded-3 py-2 fw-bold" href="#" onclick="buyMedia(50, 'https://www.youtube.com/embed/yT2zUcp1Hu4', '甜點音樂')">🍰 甜點輕音樂 <span class="badge bg-secondary float-end">💰 50</span></a></li>
+                <li><a class="dropdown-item rounded-3 py-2 fw-bold" href="#" onclick="buyMedia(100, 'https://www.youtube.com/embed/a38RjLySk_k', '咖啡廳')">☕ 舒適咖啡廳 <span class="badge bg-secondary float-end">💰 100</span></a></li>
+                <li><a class="dropdown-item rounded-3 py-2 fw-bold" href="#" onclick="buyMedia(50, 'https://www.youtube.com/embed/xq1Fg32kaVs', '韓食')">🍲 樂高韓食特輯 <span class="badge bg-secondary float-end">💰 50</span></a></li>
+                <li><a class="dropdown-item rounded-3 py-2 fw-bold" href="#" onclick="buyMedia(50, 'https://www.youtube.com/embed/n2otT7dax-E', '畫畫')">🎨畫畫 <span class="badge bg-secondary float-end">💰 50</span></a></li>
+            </ul>
+        </div>
+
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    document.querySelectorAll('.media-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var price = parseInt(this.getAttribute('data-price'));
+            var url = this.getAttribute('data-url');
+            var title = this.getAttribute('data-title');
+            
+            // 呼叫妳原本後台寫好的 buyMedia 函式
+            if (typeof buyMedia === 'function') {
+                buyMedia(price, url, title);
+            } else {
+                print("找不到 buyMedia 函式！");
+            }
+        });
+    });
+});
+</script>
+
+        
+    </div>
+</div>
+                
+
+            </div>
+        </div>
+    </div>
+
+<div class="modal fade" id="checkinModal" tabindex="-1" aria-labelledby="checkinModalLabel" aria-hidden="true" style="color: #333333;">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+        <div class="modal-content rounded-4 shadow border-0" style="background-color: #f5f5f5; margin: auto;">
+            
+            <div class="p-4 bg-white rounded-top-4 d-flex justify-content-between align-items-start border-bottom">
+                <div>
+                    <h4 class="fw-normal mb-1" id="calendar-today-str">--月--日星期-</h4>
+                    <span class="text-muted small" id="calendar-lunar-str">日曆</span>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="p-4 bg-white border-bottom">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <span class="fw-bold fs-5" id="calendar-month-title">----年--月</span>
+                    <div>
+                        <button class="btn btn-link text-muted p-1 text-decoration-none" style="font-size: 1.2rem; line-height:1;" onclick="changeMonth(-1)">▲</button>
+                        <button class="btn btn-link text-muted p-1 text-decoration-none" style="font-size: 1.2rem; line-height:1;" onclick="changeMonth(1)">▼</button>
+                    </div>
+                </div>
+
+                <div class="calendar-grid-row text-muted small mb-2 fw-bold">
+                    <div class="calendar-col">日</div>
+                    <div class="calendar-col">一</div>
+                    <div class="calendar-col">二</div>
+                    <div class="calendar-col">三</div>
+                    <div class="calendar-col">四</div>
+                    <div class="calendar-col">五</div>
+                    <div class="calendar-col">六</div>
+                </div>
+
+                <div id="calendar-days-grid"></div>
+            </div>
+
+            <div id="history-review-panel" class="p-4 bg-light border-bottom" style="background-color: #fafafa !important;">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold mb-0 text-secondary" id="review-title" style="font-size: 0.9rem;">📅 歷史紀錄</h6>
+                    <span id="review-checkin-status" class="badge rounded-pill px-2 py-1 fs-7">--</span>
+                </div>
+                
+                <div class="row g-2 text-center mb-3">
+                    <div class="col-6">
+                        <div class="bg-white p-2 rounded-3 border-0 shadow-sm">
+                            <small class="text-muted d-block" style="font-size: 0.75rem;">💧 喝水量</small>
+                            <span class="fw-bold text-primary fs-5" id="review-water">--</span> <small class="text-muted small">ml</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-white p-2 rounded-3 border-0 shadow-sm">
+                            <small class="text-muted d-block" style="font-size: 0.75rem;">👟 走路步數</small>
+                            <span class="fw-bold text-success fs-5" id="review-steps">--</span> <small class="text-muted small">步</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-3 rounded-3 border-0 shadow-sm text-start">
+                    <small class="text-muted d-block mb-1" style="font-size: 0.75rem;">📝 心情隨筆日記</small>
+                    <p class="mb-0 text-dark small" id="review-diary" style="white-space: pre-line; min-height: 40px; color: #495057 !important; line-height: 1.5;">
+                        這一天沒有寫下任何日記。
+                    </p>
+                </div>
+            </div>
+            
+            <div class="p-3 bg-white rounded-bottom-4 text-center">
+                <span class="text-muted" style="font-size: 0.75rem;">💡 提示：點擊<span class="text-primary fw-bold">藍圈(今天)</span>可簽到/看今天；點擊<span class="text-dark fw-bold">其他日子</span>可回顧。</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 全域變數與狀態初始化 ---
+    const checkinEl = document.getElementById('checkin-flag');
+    const backendHasCheckedIn = checkinEl && checkinEl.getAttribute('data-value') === 'true';
+    let displayDate = new Date(); 
+    const todayDate = new Date(); 
+
+    const specialDays = {
+        "5-27": "十一", "6-5": "芒種", "6-19": "端午節", "10-10": "國慶日", "12-25": "聖誕節"
+    };
+
+    // --- 1. 統一的網頁載入初始化中心 ---
+    document.addEventListener("DOMContentLoaded", function() {
+        // A. 初始化媒體購買按鈕事件
+        document.querySelectorAll('.media-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const price = parseInt(this.getAttribute('data-price'));
+                const url = this.getAttribute('data-url');
+                const title = this.getAttribute('data-title');
+                
+                if (typeof buyMedia === 'function') {
+                    buyMedia(price, url, title);
+                } else {
+                    console.error("找不到 buyMedia 函式！");
+                }
+            });
+        });
+
+        // B. 日曆與頁首初始化
+        initTodayHeader();
+        renderCalendar(displayDate);
+        
+        // C. 好友與邀請名單自動加載
+        checkIncomingInvitations();
+        loadAcceptedFriends();
+        
+        // D. 主題選單與切換
+// D. 主題選單與切換
+// 🔍 這裡的 localStorage 只會讀取「目前這位使用者」自己電腦裡的紀錄
+        const hasSavedTheme = localStorage.getItem('mind-app-theme');
+
+        if (hasSavedTheme === null) {
+    // 沒變更過的人，乖乖用預設
+            changeTheme('default'); 
+        } else {
+    // 有變更過的人，讀取他自己上次選的
+            changeTheme(hasSavedTheme);
+        }
+
+        window.addEventListener('click', () => {
+            const menu = document.getElementById('myThemeMenu');
+            if (menu) menu.classList.remove('show');
+        });
+
+        // E. 預先載入今天的歷史健康紀錄
+        const tYear = todayDate.getFullYear();
+        const tMonth = String(todayDate.getMonth() + 1).padStart(2, '0');
+        const tDay = String(todayDate.getDate()).padStart(2, '0');
+        const todayStr = `${tYear}-${tMonth}-${tDay}`;
+        
+        const reviewTitleEl = document.getElementById('review-title');
+        if (reviewTitleEl) reviewTitleEl.innerText = `📅 ${todayStr} 歷史健康紀錄`;
+        loadHistoryRecord(todayStr);
+
+        // F. 個人專屬背景影片載入 (優先採用 Jinja2 後端變數，捨棄容易混淆的舊 localStorage 邏輯)
+        const userSpecialVideo = "{{ lobby_video }}"; 
+        const videoElement = document.getElementById('lobbyVideo');
+        
+        if (videoElement && userSpecialVideo && userSpecialVideo !== "") {
+            let finalUrl = userSpecialVideo;
+            if ((finalUrl.includes('youtube.com') || finalUrl.includes('embed')) && !finalUrl.includes('autoplay=')) {
+                finalUrl = finalUrl + (finalUrl.includes('?') ? '&' : '?') + "autoplay=1&mute=1";
+            }
+            videoElement.src = finalUrl;
+        }
+    });
+
+    // --- 🎨 主題切換功能 ---
+    function changeTheme(themeName) {
+        document.documentElement.setAttribute('data-theme', themeName);
+        localStorage.setItem('mind-app-theme', themeName);
+        const menu = document.getElementById('myThemeMenu');
+        if (menu) menu.classList.remove('show');
+    }
+
+    function toggleThemeDropdown(event) {
+        event.stopPropagation();
+        const menu = document.getElementById('myThemeMenu');
+        if (menu) menu.classList.toggle('show');
+    }
+
+    // --- 📅 日曆核心邏輯 ---
+    function initTodayHeader() {
+        const weeks = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+        const m = todayDate.getMonth() + 1;
+        const d = todayDate.getDate();
+        const w = weeks[todayDate.getDay()];
+        
+        document.getElementById('calendar-today-str').innerText = `${m}月${d}日 ${w}`;
+        
+        const lunarStrEl = document.getElementById('calendar-lunar-str');
+        if (backendHasCheckedIn) {
+            lunarStrEl.innerText = "今日已簽到 ✓";
+            lunarStrEl.className = "text-success fw-bold small";
+        } else {
+            const key = `${m}-${d}`;
+            lunarStrEl.innerText = specialDays[key] || "心靈放鬆時光";
+            lunarStrEl.className = "text-muted small";
+        }
+    }
+
+    function renderCalendar(date) {
+        const year = date.getFullYear();
+        const month = date.getMonth(); 
+
+        document.getElementById('calendar-month-title').innerText = `${year}年${month + 1}月`;
+        const grid = document.getElementById('calendar-days-grid');
+        grid.innerHTML = ''; 
+
+        const firstDayIndex = new Date(year, month, 1).getDay();
+        const totalDays = new Date(year, month + 1, 0).getDate();
+        const prevTotalDays = new Date(year, month, 0).getDate();
+
+        let rowHtml = '<div class="calendar-grid-row">';
+        let colCount = 0;
+
+        // 渲染上個月的尾巴
+        for (let i = firstDayIndex - 1; i >= 0; i--) {
+            const pDay = prevTotalDays - i;
+            const pMonth = month === 0 ? 12 : month;
+            const pYear = month === 0 ? year - 1 : year;
+            const dateStr = `${pYear}-${String(pMonth).padStart(2, '0')}-${String(pDay).padStart(2, '0')}`;
+            rowHtml += `<div class="calendar-col text-muted opacity-50" style="cursor: pointer;" onclick="loadHistoryRecord('${dateStr}')">${pDay}</div>`;
+            colCount++;
+        }
+
+        // 渲染本月日子
+        for (let day = 1; day <= totalDays; day++) {
+            if (colCount === 7) { 
+                rowHtml += '</div><div class="calendar-grid-row">';
+                colCount = 0;
+            }
+
+            const currentMonthNum = month + 1;
+            const key = `${currentMonthNum}-${day}`;
+            let subText = specialDays[key] || "";
+            
+            const isToday = (year === todayDate.getFullYear() && month === todayDate.getMonth() && day === todayDate.getDate());
+            const dateStr = `${year}-${String(currentMonthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+            if (isToday) {
+                let todayLabel = subText || '今天';
+                if (backendHasCheckedIn) { todayLabel = "已簽"; }
+                
+                rowHtml += `
+                    <div class="calendar-col position-relative" onclick="handleDynamicCheckin(this, '${dateStr}')">
+                        <div class="rounded-circle bg-primary text-white d-flex flex-column align-items-center justify-content-center mx-auto shadow-sm" style="width: 40px; height: 40px; line-height: 1.2; font-size: 13px; background-color: #0066cc !important; cursor: pointer;">
+                            <span>${day}</span>
+                            <span id="dynamic-today-sub" style="font-size: 8px;">${todayLabel}</span>
+                        </div>
+                    </div>`;
+            } else {
+                rowHtml += `
+                    <div class="calendar-col text-dark" style="cursor: pointer; padding: 5px 0;" onclick="loadHistoryRecord('${dateStr}')">
+                        <span class="fw-bold">${day}</span><br><span class="text-muted" style="font-size: 9px; display:block; min-height:12px;">${subText || ' '}</span>
+                    </div>`;
+            }
+            colCount++;
+        }
+
+        // 渲染下個月的開頭
+        let nextMonthDay = 1;
+        while (colCount < 7) {
+            const nextMonthNum = month === 11 ? 1 : month + 2;
+            const nextYear = month === 11 ? year + 1 : year;
+            const dateStr = `${nextYear}-${String(nextMonthNum).padStart(2, '0')}-${String(nextMonthDay).padStart(2, '0')}`;
+            rowHtml += `<div class="calendar-col text-muted opacity-50" style="cursor: pointer;" onclick="loadHistoryRecord('${dateStr}')">${nextMonthDay}</div>`;
+            nextMonthDay++;
+            colCount++;
+        }
+
+        rowHtml += '</div>';
+        grid.innerHTML = rowHtml; 
+    }
+
+    function changeMonth(direction) {
+        displayDate.setMonth(displayDate.getMonth() + direction);
+        renderCalendar(displayDate); 
+    }
+
+    // --- 🚀 後端異步交互功能 (簽到、歷史紀錄、好友) ---
+    function handleDynamicCheckin(element, dateString) {
+        const subEl = document.getElementById('dynamic-today-sub');
+        if ((subEl && subEl.innerText === "已簽") || backendHasCheckedIn) {
+            loadHistoryRecord(dateString);
+            return;
+        }
+
+        fetch('/checkin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => {
+            if (response.ok) {
+                if (subEl) subEl.innerText = "已簽";
+                const lunarStrEl = document.getElementById('calendar-lunar-str');
+                if (lunarStrEl) {
+                    lunarStrEl.innerText = "今日已簽到 ✓";
+                    lunarStrEl.className = "text-success fw-bold small";
+                }
+
+                const coinSpan = document.getElementById('coin-count');
+                if (coinSpan) { coinSpan.innerText = parseInt(coinSpan.innerText) + 50; }
+
+                loadHistoryRecord(dateString);
+
+                setTimeout(() => {
+                    alert("🎉 簽到成功！金幣已確實記入資料庫！");
+                    window.location.reload(); 
+                }, 300);
+            } else {
+                alert("❌ 簽到失敗，後台處理發生錯誤。");
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("❌ 網路錯誤，無法連線至資料庫。");
+        });
+    }
+
+    function loadHistoryRecord(dateString) {
+        const panel = document.getElementById('history-review-panel');
+        if (!panel) return;
+        panel.classList.remove('d-none'); 
+        document.getElementById('review-title').innerText = `📅 ${dateString} 歷史健康紀錄`;
+
+        const statusBadge = document.getElementById('review-checkin-status');
+
+        fetch(`/get_health_record?date=${dateString}`)
+        .then(response => response.json())
+        .then(res => {
+            if (res.status === 'success' && res.found) {
+                const waterVal = res.data.water || 0;
+                const stepsVal = res.data.steps || 0;
+                const diaryVal = res.data.diary || "";
+
+                document.getElementById('review-water').innerText = waterVal;
+                document.getElementById('review-steps').innerText = stepsVal;
+                document.getElementById('review-diary').innerText = diaryVal || "這天沒有留下隨筆文字。";
+                
+                if (waterVal > 0 || stepsVal > 0 || diaryVal.trim() !== "") {
+                    statusBadge.innerText = "已簽到";
+                    statusBadge.className = "badge rounded-pill bg-success px-2 py-1 fs-7";
+                } else {
+                    statusBadge.innerText = "未簽到";
+                    statusBadge.className = "badge rounded-pill bg-secondary px-2 py-1 fs-7";
+                }
+            } else {
+                document.getElementById('review-water').innerText = "--";
+                document.getElementById('review-steps').innerText = "--";
+                document.getElementById('review-diary').innerText = "🔍 這一天您沒有記錄到健康日誌喔！";
+                
+                statusBadge.innerText = "未簽到";
+                statusBadge.className = "badge rounded-pill bg-secondary px-2 py-1 fs-7";
+            }
+        })
+        .catch(err => { 
+            console.error("載入歷史紀錄失敗:", err); 
+        });
+    }
+
+    // 💡 針對大廳專屬歷史彈窗的個別查詢 (保留你的高精度對接邏輯)
+    function showDailyHistory(dateStr) {
+        const titleEl = document.getElementById('historyModalDate');
+        if (titleEl) titleEl.innerText = dateStr + " 身心回顧";
+
+        fetch(`/get_daily_record/${dateStr}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const waterText = document.getElementById('modal-water-text');
+                const stepsText = document.getElementById('modal-steps-text');
+                const diaryText = document.getElementById('modal-diary-text');
+
+                if (data.has_data) {
+                    if (waterText) waterText.innerText = data.water + " ml";
+                    if (stepsText) stepsText.innerText = data.steps + " 步";
+                    if (diaryText) diaryText.innerText = data.diary;
+                } else {
+                    if (waterText) waterText.innerText = "-- ml";
+                    if (stepsText) stepsText.innerText = "-- 步";
+                    if (diaryText) diaryText.innerText = "這一天沒有寫下任何日誌。";
+                }
+            }
+        })
+        .catch(err => console.error("撈取歷史回顧時發生錯誤:", err));
+    }
+
+    // --- 🔮 好友時空連線模組 ---
+    function sendInvitation() {
+        const friendInput = document.getElementById('friendInput'); 
+        if (!friendInput) return;
+        const friendName = friendInput.value.trim();
+
+        if (!friendName) {
+            alert("請先輸入好友的名字或邀請碼！");
+            return;
+        }
+
+        fetch('/api/invite_friend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ friend_name: friendName })
+        })
+        .then(async response => {
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                const rawText = await response.text();
+                console.error("後端回傳了非 JSON 內容：", rawText);
+                throw new Error("系統路由對接失敗，請檢查後端網址！");
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert(data.message);
+            if (data.success) {
+                friendInput.value = "";
+            }
+        })
+        .catch(error => {
+            console.error("連線出錯:", error);
+            alert("連線失敗：" + error.message);
+        });
+    }
+
+    function checkIncomingInvitations() {
+        fetch('/api/get_invitations')
+            .then(response => response.json())
+            .then(data => {
+                const inviteBox = document.getElementById('invitation-box');
+                const inviteList = document.getElementById('invitation-list');
+                if (!inviteList || !inviteBox) return;
+                
+                inviteList.innerHTML = ''; 
+                
+                if (data.success && data.invitations.length > 0) {
+                    data.invitations.forEach(invite => {
+                        const div = document.createElement('div');
+                        div.className = "d-flex justify-content-between align-items-center bg-white bg-opacity-50 p-2 rounded-2 shadow-sm";
+                        div.innerHTML = `
+                            <span class="small">🔮 <b>${invite.sender_nickname}</b></span>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-primary rounded-pill py-1 px-3 small" onclick="acceptFriend(${invite.invite_id})">同意</button>
+                                <button class="btn btn-sm btn-outline-danger rounded-pill py-1 px-3 small" onclick="rejectFriend(${invite.invite_id})">拒絕</button>
+                            </div>
+                        `;
+                        inviteList.appendChild(div);
+                    });
+                    inviteBox.style.display = 'block'; 
+                } else {
+                    inviteBox.style.display = 'none';  
+                }
+            })
+            .catch(err => console.error("抓取邀請通知失敗:", err));
+    }
+
+    function acceptFriend(inviteId) {
+        fetch('/api/accept_friend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ invite_id: inviteId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                checkIncomingInvitations(); 
+                loadAcceptedFriends();     
+            } else {
+                alert('連線失敗: ' + data.message);
+            }
+        })
+        .catch(err => console.error('Error:', err));
+    }
+
+    function rejectFriend(inviteId) {
+        if (confirm("確定要拒絕這項時空連線請求嗎？")) {
+            fetch('/api/reject_friend', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ invite_id: inviteId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    checkIncomingInvitations(); 
+                } else {
+                    alert('處理失敗: ' + data.message);
+                }
+            })
+            .catch(err => console.error('Error:', err));
+        }
+    }
+
+    function loadAcceptedFriends() {
+        fetch('/api/get_friends')
+            .then(response => response.json())
+            .then(data => {
+                const statusText = document.getElementById('connection-status');
+                const friendsList = document.getElementById('friends-list');
+                if (!friendsList || !statusText) return;
+                
+                friendsList.innerHTML = ''; 
+                
+                if (data.success && data.friends.length > 0) {
+                    statusText.style.display = 'none'; 
+                    friendsList.style.display = 'flex'; 
+                    
+                    data.friends.forEach(friend => {
+                        const div = document.createElement('div');
+                        div.className = "p-2 rounded-3 text-start small border border-success border-opacity-20 shadow-sm w-100";
+                        div.style.background = "rgba(40, 167, 69, 0.1)";
+                        div.innerHTML = `🟢 <b>${friend.nickname}</b> <span class="opacity-75 text-success ms-1">(時空已連線)</span>`;
+                        friendsList.appendChild(div);
+                    });
+                } else {
+                    statusText.style.display = 'block';
+                    friendsList.style.display = 'none';
+                }
+            })
+            .catch(err => console.error("加載好友名單失敗:", err));
+    }
+
+    // --- 🎵 商店背景媒體購買與更換 (最新終極版) ---
+    function buyMedia(price, url, itemName) {
+        const confirmMsg = price === 0 ? `確定要免費更換背景為【${itemName}】嗎？` : `確定要花費 ${price} 金幣購買並更換為【${itemName}】嗎？`;
+        
+        if (confirm(confirmMsg)) {
+            fetch('/buy_media', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    price: price,
+                    item_name: itemName,
+                    video_url: url  // 🎯 確實將按鈕上的 data-url 正確回傳後端存入該使用者的獨立資料庫！
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("網頁路由未找到或伺服器出錯");
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    let finalUrl = url;
+                    if (url.includes('youtube.com') || url.includes('embed')) {
+                        finalUrl = url + (url.includes('?') ? '&' : '?') + "autoplay=1&mute=1";
+                    }
+
+                    // 1. 立即切換目前大廳的背景影片
+                    const videoElement = document.getElementById('lobbyVideo');
+                    if (videoElement) {
+                        videoElement.src = finalUrl;
+                    }
+                    
+                    // 2. 徹底移除舊的 localStorage 暫存，防止多帳號切換時發生隔離污染
+                    localStorage.removeItem('current-lobby-video');
+                    
+                    // 3. 同步更新網頁右上角的金幣餘額
+                    const coinElement = document.getElementById('coin-count');
+                    if (coinElement) {
+                        coinElement.innerText = data.new_balance;
+                    }
+                    
+                    alert(`成功更換背景為【${itemName}】！${price > 0 ? '已扣除 ' + price + ' 金幣。' : ''}`);
+                    
+                    // 4. 強制刷新頁面，讓大廳重新向後端索取該登入者的最新個人資料庫狀態！
+                    window.location.reload();
+                    
+                } else {
+                    alert("提示: " + data.message);
+                }
+            })
+            .catch(error => {
+                console.error("錯誤細節:", error);
+                alert("伺服器連線失敗，請確認後端 app.py 有無正常重啟！");
+            });
+        }
+    }
+</script>
+{% endblock %}

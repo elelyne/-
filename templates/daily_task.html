@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+    body {
+        background: linear-gradient(135deg, #e0f2fe 0%, #ccfbf1 50%, #e0e7ff 100%) !important;
+        background-attachment: fixed !important;
+        min-height: 100vh;
+    }
+    .glass-card {
+        background: rgba(255, 255, 255, 0.75) !important; /* 保持精緻白底 */
+        backdrop-filter: blur(12px) saturate(180%);
+        -webkit-backdrop-filter: blur(12px) saturate(180%);
+        border: 1px solid rgba(255, 255, 255, 0.5) !important;
+        border-radius: 24px !important;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    }
+    .form-control, .form-select {
+        border-radius: 12px;
+        border: 1px solid rgba(0,0,0,0.1);
+        background: rgba(255,255,255,0.5);
+        padding: 10px 15px;
+    }
+    .form-control:focus, .form-select:focus {
+        background: rgba(255,255,255,0.9);
+        box-shadow: 0 0 0 3px rgba(3, 105, 161, 0.2);
+    }
+    .btn-round {
+        border-radius: 50px;
+        padding: 12px;
+        font-weight: bold;
+    }
+</style>
+
+<div class="container daily-page" style="max-width: 900px; margin-top: 40px; margin-bottom: 40px;">
+    
+    <div class="text-center mb-4">
+        <h3 class="fw-bold text-dark">每日任務-健康日誌</h3>
+        <p class="text-muted small">紀錄今日狀態調整身心靈能量</p>
+    </div>
+
+    <div class="glass-card p-4 p-md-5">
+        <form method="POST" id="taskForm">
+            
+            <div class="row g-3 mb-3">
+                <div class="col-6">
+                    <label class="form-label small fw-bold">身高 (cm)</label>
+                    <input type="number" step="0.1" name="height" class="form-control" value="{{ user.height or '' }}" placeholder="170">
+                </div>
+                <div class="col-6">
+                    <label class="form-label small fw-bold">體重 (kg)</label>
+                    <input type="number" step="0.1" name="weight" class="form-control" value="{{ user.weight or '' }}" placeholder="60">
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label small fw-bold">性別</label>
+                <select name="gender" class="form-select">
+                    <option value="男性" {% if user.gender == '男性' %}selected{% endif %}>男性</option>
+                    <option value="女性" {% if user.gender == '女性' %}selected{% endif %}>女性</option>
+                    <option value="不透露" {% if user.gender == '不透露' %}selected{% endif %}>不透露</option>
+                </select>
+            </div>
+            
+            <hr class="my-4 opacity-25">
+
+            <div class="mb-3">
+                <label class="form-label small fw-bold">今日喝水量 (ml)</label>
+                <input type="number" name="water" class="form-control" value="{{ record.water if record else 0 }}">
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label small fw-bold">走路步數</label>
+                <input type="number" name="steps" class="form-control" value="{{ record.steps if record else 0 }}">
+            </div>
+            
+            <div class="mb-4">
+                <label class="form-label small fw-bold">✍️心情隨筆日記</label>
+                <textarea name="diary" id="diaryInput" class="form-control" rows="4" placeholder="寫下今天的心情點滴...（至少輸入5個字喔！）" required>{{ record.diary if record else '' }}</textarea>
+                <div class="form-text text-end small opacity-75">認真記錄，領取豐富獎勵</div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary w-100 btn-round shadow-sm">
+                💾 提交今日日誌 (領取100金幣) 
+            </button>
+        </form>
+    </div>
+    
+    <div class="text-center mt-3">
+        <a href="/lobby" class="btn btn-link text-muted text-decoration-none small">🔙 返回大廳客廳</a>
+    </div>
+</div>
+
+<script>
+document.getElementById('taskForm').addEventListener('submit', function(e) {
+    const diaryContent = document.getElementById('diaryInput').value.trim();
+    
+    if (diaryContent.length === 0) {
+        e.preventDefault(); 
+        alert('❌ 日記欄位不能只打空白鍵喔！請分享一點今天的心情吧～');
+        return;
+    }
+    
+    if (diaryContent.length < 5) {
+        e.preventDefault(); 
+        alert('❌ 心情日記字數太少囉（至少要 5 個字），再多寫一點點就能領 100 金幣了！');
+    }
+});
+</script>
+{% endblock %}

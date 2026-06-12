@@ -1,0 +1,342 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+
+<style>
+    body {
+        background-color: #f4f6f9;
+        overflow-x: hidden; /* 防止滿版滑動導致全網頁左右出現捲軸 */
+    }
+    .emotion-report-title {
+        font-weight: 800;
+        letter-spacing: 1px;
+    }
+    
+    /* 🎯 3D 卡片強制突破外層 container 限制，實現螢幕滿版舞台 */
+    .full-width-wrapper {
+        width: 100vw;
+        position: relative;
+        left: 50%;
+        right: 50%;
+        margin-left: -50vw;
+        margin-right: -50vw;
+        padding: 2rem 0;
+        background: linear-gradient(180deg, rgba(244,246,249,0) 0%, rgba(230,235,242,0.6) 50%, rgba(244,246,249,0) 100%);
+    }
+
+    .swiper {
+        width: 100%;
+        padding-top: 2rem !important;
+        padding-bottom: 3.5rem !important;
+    }
+
+    /* 🎯 3D 虛擬卡片外觀 */
+    .swiper-slide {
+        background-position: center;
+        background-size: cover;
+        width: 420px; 
+        min-height: 480px;
+        background: #ffffff;
+        border-radius: 24px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.08);
+        padding: 2.5rem 2rem;
+        border-top: 8px solid #dc3545;
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    /* 讓非當前選中的左右兩側卡片帶有半透明暗化 */
+    .swiper-slide:not(.swiper-slide-active) {
+        opacity: 0.4;
+        filter: blur(1px);
+    }
+
+    .my-handdrawn-avatar {
+        width: 180px; 
+        height: auto; 
+        display: block;
+        margin: 0 auto;
+        filter: drop-shadow(0 12px 20px rgba(0,0,0,0.12));
+    }
+
+    /* 下方數據版面維持置中 */
+    .bottom-stage {
+        max-width: 900px;
+        margin: 1rem auto 5rem auto;
+    }
+    .data-panel, .prescription-box {
+        background: #ffffff; 
+        border-radius: 18px; 
+        box-shadow: 0 10px 30px rgba(0,0,0,0.04);
+        padding: 2rem;
+        height: 100%;
+    }
+    .swiper-pagination-bullet-active {
+        background: #dc3545 !important;
+        width: 24px !important;
+        border-radius: 4px !important;
+    }
+</style>
+
+<div class="container my-5" id="quiz-outer-container" style="max-width: 750px; color: #E4E4E6;">
+    
+    <div id="quiz-header">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="fw-bold text-info mb-0">🔮 心靈核心情緒探測儀</h4>
+            <span class="badge bg-secondary fs-6" id="progress-text">1 / {{ questions|length }}</span>
+        </div>
+        
+        <div class="progress mb-4" style="height: 8px; background-color: #2D2D35;">
+            <div id="progress-bar" class="progress-bar bg-info progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%;"></div>
+        </div>
+    </div>
+
+    <div class="card shadow-lg" id="quiz-card-shell" style="background-color: #1E1E24; border: 1px solid #2D2D35; border-radius: 16px; padding: 25px;">
+        <form id="quiz-form">
+            {% for q in questions %}
+            <div class="question-card {% if not loop.first %}d-none{% endif %}" id="q-box-{{ q.id }}" data-qid="{{ q.id }}">
+                <div class="mb-4">
+                    <div class="d-inline-block badge bg-dark text-info border border-info mb-3 px-3 py-2 fw-normal" style="font-size: 0.85rem; border-radius: 30px;">
+                        🎬 場景：{{ q.scene or q.category or q.title or "心靈情境" }}
+                    </div>
+                    
+                    <p class="text-white-50 fs-6 mb-4 lh-base" style="text-align: justify; letter-spacing: 0.5px;">
+                        {{ q.description or q.desc or q.context or "請讀完以下情境後，選出最貼近你真實想法的選項：" }}
+                    </p>
+
+                    <h5 class="fw-bold text-white mb-2" style="font-size: 1.1rem;">
+                        Q{{ loop.index }}. 您的直覺選擇是？
+                    </h5>
+                </div>
+                
+                <div class="d-grid gap-3">
+                    {% for choice in q.choices %}
+                    <button type="button" class="btn choice-btn text-start p-3" 
+                            style="background-color: #25252D; color: #E4E4E6; border: 1px solid #3A3A45; border-radius: 10px; transition: all 0.2s;"
+                            data-index="{{ loop.index0 }}"
+                            onmouseover="this.style.backgroundColor='#2D2D38'; this.style.borderColor='#0dcaf0';"
+                            onmouseout="this.style.backgroundColor='#25252D'; this.style.borderColor='#3A3A45';">
+                        <span class="fw-bold me-2" style="color: #0dcaf0;">{{ ['A','B','C','D','E','F'][loop.index0] }}.</span> {{ choice.text }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </form>
+    </div>
+</div>
+
+<div id="dynamic-result-stage" class="d-none">
+    
+    <div class="text-center mt-4">
+        <h2 class="emotion-report-title text-dark">🔍 您的身心特徵診斷報告</h2>
+        <p class="text-muted small">依據情緒模組與今日健康日誌交叉比對結果</p>
+    </div>
+
+    <div class="full-width-wrapper">
+        <div class="swiper mySwiper">
+            <div class="swiper-wrapper" id="swiper-cards-injector">
+                </div>
+            <div class="swiper-pagination"></div>
+        </div>
+    </div>
+
+    <div class="bottom-stage px-3">
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="data-panel">
+                    <h5 class="fw-bold text-primary mb-3">📋 當日身心狀況數據統計</h5>
+                    <div class="d-flex flex-column gap-3 mb-3 fs-6">
+                        <div class="d-flex justify-content-between border-bottom pb-2">
+                            <span class="text-muted">💧 今日飲水</span>
+                            <span class="fw-bold text-dark" id="render-water">0 ml</span>
+                        </div>
+                        <div class="d-flex justify-content-between border-bottom pb-2">
+                            <span class="text-muted">🏃 累計步数</span>
+                            <span class="fw-bold text-dark" id="render-steps">0 步</span>
+                        </div>
+                        <div class="d-flex justify-content-between pb-2">
+                            <span class="text-muted">📝 心情隨筆</span>
+                            <span class="fw-bold text-dark" id="render-diary">未填寫</span>
+                        </div>
+                    </div>
+                    <div class="p-3 rounded bg-light border-0">
+                        <p class="small mb-0 text-secondary" style="line-height: 1.5;" id="render-summary"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="prescription-box text-center d-flex flex-column justify-content-between">
+                    <div>
+                        <h5 class="fw-bold text-success mb-3">🌲 系統舒壓處方箋</h5>
+                        <ul class="text-start small text-muted ps-3 my-2" style="font-size: 0.95rem;" id="render-advice-list">
+                            </ul>
+                    </div>
+                    <div class="mt-3">
+                        <p class="small text-muted mb-2">讓我們開啟地圖，跟著解壓小精靈一起去戶外走走吧！</p>
+                        <a href="/relief" class="btn btn-success w-100 py-2.5 fw-bold fs-6 shadow-sm" style="border-radius: 30px; background-color: #198754; border: none;">🚶‍♂️ 進入地圖運動</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="text-center mt-5">
+            <a href="/quiz" class="btn btn-outline-secondary px-4 me-2" style="border-radius: 20px;">重新測驗</a>
+            <a href="/lobby" class="btn btn-secondary px-4" style="border-radius: 20px;">返回大廳</a>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const cards = document.querySelectorAll('.question-card');
+    const totalQuestions = cards.length;
+    let currentIdx = 0;
+    let answers = {}; 
+
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const quizOuterContainer = document.getElementById('quiz-outer-container');
+    const dynamicResultStage = document.getElementById('dynamic-result-stage');
+    const swiperCardsInjector = document.getElementById('swiper-cards-injector');
+
+    function updateProgress() {
+        let percent = ((currentIdx + 1) / totalQuestions) * 100;
+        progressBar.style.width = percent + '%';
+        progressText.innerText = `${currentIdx + 1} / ${totalQuestions}`;
+    }
+    
+    updateProgress();
+
+    // 點擊選項按鈕
+    document.querySelectorAll('.choice-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            let currentCard = cards[currentIdx];
+            let qId = currentCard.getAttribute('data-qid');
+            let choiceIdx = parseInt(this.getAttribute('data-index'));
+            
+            answers[qId] = choiceIdx;
+
+            if (currentIdx < totalQuestions - 1) {
+                currentCard.classList.add('d-none');
+                currentIdx++;
+                cards[currentIdx].classList.remove('d-none');
+                updateProgress();
+            } else {
+                submitQuiz();
+            }
+        });
+    });
+
+    // 核心提交與動態 3D 卡片渲染
+    function submitQuiz() {
+        progressText.innerText = "正在為您交叉分析 11 種核心情緒波動...";
+        progressBar.classList.remove('bg-info');
+        progressBar.classList.add('bg-warning');
+
+        fetch('/quiz/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ answers: answers })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 1. 隱藏原來的暗色測驗卡片區
+                quizOuterContainer.classList.add('d-none');
+                
+                // 2. 清空並動態建立 11 種核心情緒的 Swiper Slide 卡片
+                swiperCardsInjector.innerHTML = "";
+                
+                // 後端回傳的 all_emotions 已經由分數從高到低排好序，第一名會出現在最前面
+                data.all_emotions.forEach((emotion) => {
+                    let cardHtml = `
+                        <div class="swiper-slide text-center">
+                            <div class="mb-4">
+                                <img src="/static/images/${emotion.image}" 
+                                     alt="${emotion.name}" 
+                                     class="my-handdrawn-avatar"
+                                     onerror="this.src='https://placehold.co/180x180/e2e8f0/475569?text=${emotion.name}'">
+                                <h3 class="fw-bold text-dark mt-3 mb-1" style="font-size: 1.5rem;">${emotion.name}</h3>
+                            </div>
+                            
+                            <div class="d-flex justify-content-center align-items-center gap-2 mb-3">
+                                <h5 class="fw-bold text-danger mb-0" style="font-size: 1.2rem;">${emotion.title}</h5>
+                                <span class="badge bg-danger rounded-pill px-3 py-2">${emotion.score} / 10 分</span>
+                            </div>
+                            
+                            <div class="progress mb-4" style="height: 12px; background-color: #e9ecef; border-radius: 6px;">
+                                <div class="progress-bar bg-danger js-dynamic-bar" 
+                                     role="progressbar" 
+                                     style="border-radius: 6px; width: 0%; transition: width 1s ease-in-out;"
+                                     data-percent="${emotion.score * 10}">
+                                </div>
+                            </div>
+                            
+                            <p class="text-secondary mb-0 px-2" style="line-height: 1.6; text-align: justify; font-size: 0.95rem;">
+                                ${emotion.desc}
+                            </p>
+                        </div>
+                    `;
+                    swiperCardsInjector.innerHTML += cardHtml;
+                });
+
+                // 3. 渲染下方的生理日誌數據與處方箋
+                document.getElementById('render-water').innerText = `${data.report.water} ml`;
+                document.getElementById('render-steps').innerText = `${data.report.steps} 步`;
+                document.getElementById('render-diary').innerText = data.report.has_diary;
+                document.getElementById('render-summary').innerText = data.report.summary;
+
+                const adviceListUl = document.getElementById('render-advice-list');
+                adviceListUl.innerHTML = "";
+                data.report.advice.forEach(adv => {
+                    adviceListUl.innerHTML += `<li class="mb-2 text-dark" style="line-height: 1.5;">${adv}</li>`;
+                });
+
+                // 4. 解開隱藏，顯示 3D 成果舞台
+                dynamicResultStage.classList.remove('d-none');
+
+                // 5. 🛠️ 重大步驟：等 DOM 元素渲染完成後，立刻原地初始化 Swiper 機制
+                var swiper = new Swiper(".mySwiper", {
+                    effect: "coverflow",
+                    grabCursor: true,
+                    centeredSlides: true,
+                    slidesPerView: "auto",
+                    coverflowEffect: {
+                        rotate: 15,        
+                        stretch: 30,       
+                        depth: 150,        
+                        modifier: 1.2,     
+                        slideShadows: false,
+                    },
+                    pagination: {
+                        el: ".swiper-pagination",
+                        clickable: true,
+                    },
+                });
+
+                // 6. 觸發動態進度條動畫
+                const dynamicBars = document.querySelectorAll('.js-dynamic-bar');
+                dynamicBars.forEach(function(bar) {
+                    const percent = bar.getAttribute('data-percent');
+                    setTimeout(() => {
+                        bar.style.width = percent + '%';
+                        bar.setAttribute('aria-valuenow', percent);
+                    }, 200);
+                });
+
+            } else {
+                alert(data.message || '報告解碼失敗，請重新檢測！');
+                window.location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('時空鏈接發生錯誤，請稍後再試！');
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,26 @@
+[
+  {"id": 1, "dimension": "O", "type": "positive", "text": "我對新奇的事物、抽象的想法充滿好奇心與想像力。"},
+  {"id": 2, "dimension": "O", "type": "positive", "text": "我喜歡欣賞藝術、深刻的電影或哲學理論。"},
+  {"id": 3, "dimension": "O", "type": "negative", "text": "我偏好一成不變的常規，不太喜歡嘗試不熟悉的活動。"},
+  {"id": 4, "dimension": "O", "type": "negative", "text": "我覺得過於理論或抽象的概念很無聊且不切實際。"},
+  
+  {"id": 5, "dimension": "C", "type": "positive", "text": "我做事非常有條理，做決定前習慣提早做好周全計劃。"},
+  {"id": 6, "dimension": "C", "type": "positive", "text": "我對自己要求嚴格，總是準時且負責任地完成承諾。"},
+  {"id": 7, "dimension": "C", "type": "negative", "text": "我常常把事情拖延到最後一刻，生活有些缺乏條理。"},
+  {"id": 8, "dimension": "C", "type": "negative", "text": "我做起事來比較隨性，有時候會顯得丟三落四。"},
+  
+  {"id": 9, "dimension": "E", "type": "positive", "text": "在社交場合中，我通常是活躍、話多且充滿能量的。"},
+  {"id": 10, "dimension": "E", "type": "positive", "text": "我喜歡結交新朋友，待在熱鬧的人群中會讓我充飽電。"},
+  {"id": 11, "dimension": "E", "type": "negative", "text": "我比較安靜內斂，通常喜歡享受一個人的獨處時光。"},
+  {"id": 12, "dimension": "E", "type": "negative", "text": "在不熟悉的人群中，我傾向保持低調、不主動發言。"},
+  
+  {"id": 13, "dimension": "A", "type": "positive", "text": "我很容易對他人的遭遇產生同理心，並樂意信任與幫助別人。"},
+  {"id": 14, "dimension": "A", "type": "positive", "text": "我追求和諧，在群體中很少與他人發生衝突或爭執。"},
+  {"id": 15, "dimension": "A", "type": "negative", "text": "我講話比較直接犀利，有時候不太在乎會不會得罪人。"},
+  {"id": 16, "dimension": "A", "type": "negative", "text": "我對他人的動機常抱持懷疑，覺得人應該先為自己著想。"},
+  
+  {"id": 17, "dimension": "N", "type": "positive", "text": "我容易因為壓力、小事而感到焦慮、緊張或情緒起伏大。"},
+  {"id": 18, "dimension": "N", "type": "positive", "text": "當事情進展不順利時，我很容易陷入悲觀或消極的情緒中。"},
+  {"id": 19, "dimension": "N", "type": "negative", "text": "即使面對突如其來的危機，我也能保持冷靜與情緒穩定。"},
+  {"id": 20, "dimension": "N", "type": "negative", "text": "我很少感到憂鬱或莫名焦躁，能很快自我調適壓力。"}
+]

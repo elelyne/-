@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="result-page" id="js-source-content" style="display: none;">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+
+    <style>
+        /* 🔥 全局大破壞：強制讓 base.html 的那個白色小盒子徹底透明、不遮擋任何東西 */
+        .app-container {
+            background: transparent !important;
+            background-color: transparent !important;
+            box-shadow: none !important;
+            border: none !important;
+            max-width: none !important;
+            width: auto !important;
+            overflow: visible !important; /* 🌟 核心：防止卡片被無情切斷 */
+        }
+
+        /* 🌲 我們自己建立的「真正滿版全螢幕大舞台」 */
+        .super-massive-stage {
+            position: absolute;
+            left: 0;
+            right: 0;
+            width: 100vw;
+            min-height: 100vh;
+            background-color: #f4f6f9 !important; /* 舒服的全螢幕淺灰底 */
+            z-index: 1;
+            padding: 2rem 0 5rem 0;
+            overflow-x: hidden;
+        }
+
+        .inner-content-container {
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        body {
+            background-color: #f4f6f9 !important;
+            overflow-x: hidden;
+        }
+
+        .emotion-report-title {
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+
+        .swiper-area {
+            width: 100%;
+            padding: 1.5rem 0;
+            position: relative;
+        }
+        
+        .swiper {
+            width: 100%;
+            padding-top: 1rem !important;
+            padding-bottom: 3.5rem !important;
+            overflow: visible !important; /* 🌟 讓左右兩邊的怪獸卡片可以無限延伸看得到 */
+        }
+
+        /* 3D 怪獸卡牌維持白色 */
+        .swiper-slide {
+            background-position: center;
+            background-size: cover;
+            width: 400px; 
+            min-height: 480px;
+            background: #ffffff !important;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.06) !important;
+            padding: 2.5rem 2rem;
+            border-top: 8px solid #dc3545;
+            transition: transform 0.3s, opacity 0.3s;
+        }
+
+        .swiper-slide:not(.swiper-slide-active) {
+            opacity: 0.35;
+            filter: blur(0.5px);
+        }
+
+        .my-handdrawn-avatar {
+            width: 160px; 
+            height: auto; 
+            display: block;
+            margin: 0 auto;
+            filter: drop-shadow(0 12px 20px rgba(0,0,0,0.1));
+        }
+
+        /* 下方數據卡片 */
+        .data-panel, .prescription-box {
+            background: #ffffff !important; 
+            border-radius: 24px !important; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.04) !important; 
+            padding: 2.5rem !important;
+            height: 100%;
+            border: none !important;
+        }
+
+        .swiper-pagination-bullet-active {
+            background: #dc3545 !important;
+            width: 24px !important;
+            border-radius: 4px !important;
+        }
+    </style>
+
+    <div class="super-massive-stage">
+        <div class="inner-content-container">
+
+            <div class="text-center mt-2 mb-4">
+                <h2 class="emotion-report-title text-dark">🔍 您的身心特徵診斷報告</h2>
+                <p class="text-muted small">依據情緒模組與今日健康日誌交叉比對結果（可左右滑動查看所有怪獸）</p>
+            </div>
+
+            <div class="swiper-area">
+                <div class="swiper mySwiper">
+                    <div class="swiper-wrapper">
+                        {% for emotion in emotions %}
+                        <div class="swiper-slide text-center">
+                            <div class="mb-4">
+                                <img src="{{ url_for('static', filename='images/' + emotion.image) }}" 
+                                     alt="{{ emotion.name }}" 
+                                     class="my-handdrawn-avatar"
+                                     onerror="this.src='https://placehold.co/160x160/e2e8f0/475569?text=Monster'">
+                                <h3 class="fw-bold text-dark mt-3 mb-1" style="font-size: 1.5rem;">{{ emotion.name }}</h3>
+                            </div>
+                            
+                            <div class="d-flex justify-content-center align-items-center gap-2 mb-3">
+                                <h5 class="fw-bold text-danger mb-0" style="font-size: 1.2rem;">{{ emotion.title }}</h5>
+                                <span class="badge bg-danger rounded-pill px-3 py-2">{{ emotion.score }} / 10 分</span>
+                            </div>
+                            
+                            <div class="progress mb-4" style="height: 12px; background-color: #e9ecef; border-radius: 6px;">
+                                <div class="progress-bar bg-danger js-progress-bar" 
+                                     role="progressbar" 
+                                     style="border-radius: 6px; transition: width 0.8s ease-in-out; width: 0%;"
+                                     data-percent="{{ emotion.score * 10 }}">
+                                </div>
+                            </div>
+                            
+                            <p class="text-secondary mb-0 px-2" style="line-height: 1.6; text-align: justify; font-size: 0.95rem;">
+                                {{ emotion.desc }}
+                            </p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="swiper-pagination"></div>
+                </div>
+            </div>
+
+            <div class="row g-4 mt-2">
+                <div class="col-md-6">
+                    <div class="data-panel">
+                        <h4 class="fw-bold text-primary mb-4 d-flex align-items-center gap-2">
+                            <span>📋</span> 當日身心狀況數據統計
+                        </h4>
+                        <div class="d-flex flex-column gap-3 mb-4 fs-6">
+                            <div class="d-flex justify-content-between border-bottom pb-2">
+                                <span class="text-muted">💧 今日飲水</span>
+                                <span class="fw-bold text-dark" style="font-size: 1.1rem;">{{ user.water or 0 }} ml</span>
+                            </div>
+                            <div class="d-flex justify-content-between border-bottom pb-2">
+                                <span class="text-muted">🏃 累計步數</span>
+                                <span class="fw-bold text-dark" style="font-size: 1.1rem;">{{ user.steps or 0 }} 步</span>
+                            </div>
+                            <div class="d-flex justify-content-between pb-2">
+                                <span class="text-muted">📝 心情隨筆</span>
+                                <span class="fw-bold text-dark" style="font-size: 1.1rem;">{{ report.has_diary }}</span>
+                            </div>
+                        </div>
+                        <div class="p-3 rounded-4 bg-light border-0">
+                            <p class="small mb-0 text-secondary" style="line-height: 1.6; font-size: 0.95rem;">{{ report.summary }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="prescription-box d-flex flex-column justify-content-between">
+                        <div>
+                            <h4 class="fw-bold text-success mb-4 d-flex align-items-center gap-2">
+                                 舒壓處方箋
+                            </h4>
+                            <ul class="text-start text-muted ps-3 my-2" style="font-size: 1rem;">
+                                {% for adv in report.advice %}
+                                    <li class="mb-3 text-dark" style="line-height: 1.6;">{{ adv }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        <div class="mt-4 text-center">
+                            <p class="small text-muted mb-3">開啟地圖，跟著解壓小精靈一起去戶外走走吧！</p>
+                            <a href="/relief" class="btn btn-success w-100 py-3 fw-bold fs-5 shadow-sm" style="border-radius: 50px; background-color: #198754; border: none;">🚶‍♂️ 進入地圖運動</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-5">
+                <a href="/quiz" class="btn btn-outline-secondary px-4 py-2 me-2" style="border-radius: 20px;">重新測驗</a>
+                <a href="/lobby" class="btn btn-secondary px-4 py-2" style="border-radius: 20px;">返回大廳</a>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // 🎯 終極外掛：把整個舞台拔出來，直接丟到最外層的 <body> 底下，徹底脫離 base.html 的白色死板外殼限制！
+    const sourceContent = document.getElementById('js-source-content');
+    const stage = sourceContent.querySelector('.super-massive-stage');
+    
+    if (stage) {
+        // 直接把大舞台塞給 body，讓它擁有 100vw 的絕對全螢幕自由
+        document.body.appendChild(stage);
+        sourceContent.remove(); // 移除原本卡在舊盒子裡的空殼
+        
+        // 強制把舊的容器和白底全部扒光，完全不干擾畫面
+        const oldContainer = document.querySelector('.app-container');
+        if (oldContainer) {
+            oldContainer.style.setProperty('display', 'none', 'important');
+        }
+    }
+
+    // 🎡 重新在全新舞台上初始化 Swiper (此時絕對不會再被任何東西切斷！)
+    var swiper = new Swiper(".mySwiper", {
+        effect: "coverflow",
+        grabCursor: true,
+        centeredSlides: true,
+        slidesPerView: "auto",
+        coverflowEffect: {
+            rotate: 10,        
+            stretch: 60,       
+            depth: 140,        
+            modifier: 1.2,     
+            slideShadows: false,
+        },
+        pagination: {
+            el: ".swiper-pagination",
+            clickable: true,
+        },
+    });
+
+    // 📊 能量條動畫
+    const progressBars = document.querySelectorAll('.js-progress-bar');
+    progressBars.forEach(function(bar) {
+        const percent = bar.getAttribute('data-percent');
+        setTimeout(() => {
+            bar.style.width = percent + '%';
+            bar.setAttribute('aria-valuenow', percent);
+        }, 400);
+    });
+});
+</script>
+
+{% endblock %}

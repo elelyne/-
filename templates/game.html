@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>節奏派對 3.0 - 好友複製人對決</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #0c0a14; color: white; font-family: sans-serif; padding: 20px; max-width: 500px; margin: 0 auto; user-select: none; -webkit-user-select: none; }
+        .game-card { background: #151324; padding: 18px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); border: 1px solid #2d284d; }
+        
+        /* 🕹️ 核心遊戲舞台 */
+        .track-container { background: #08070e; height: 400px; border-radius: 12px; border: 2px solid #3b3561; position: relative; overflow: hidden; }
+        .hit-line { position: absolute; width: 100%; border-top: 4px solid #ff4a5a; bottom: 80px; left: 0; z-index: 10; box-shadow: 0 0 15px #ff4a5a, inset 0 0 10px #ff4a5a; }
+        
+        .track { position: relative; height: 100%; width: 33.33%; border-right: 1px dashed rgba(98, 0, 238, 0.3); cursor: pointer; transition: background 0.1s; }
+        .track:last-child { border-right: none; }
+        .track.active-flash { background: linear-gradient(to top, rgba(3, 218, 198, 0.4) 0%, rgba(3, 218, 198, 0.0) 70%) !important; }
+        
+        .key-badge { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); background: #1e1b30; color: #03DAC6; font-weight: bold; padding: 4px 14px; border-radius: 8px; border: 1px solid #03DAC6; pointer-events: none; box-shadow: 0 0 5px rgba(3, 218, 198, 0.5); }
+        .note-item { position: absolute; top: -40px; left: 50%; transform: translateX(-50%); font-size: 32px; z-index: 5; transition: top 1.6s linear; pointer-events: none; filter: drop-shadow(0 0 8px #ff4a5a); }
+        
+        #combo-floating { position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 20; pointer-events: none; }
+        .judge-text { font-size: 2rem; font-weight: 900; text-transform: uppercase; margin: 0; text-shadow: 0 0 10px rgba(255,255,255,0.8); animation: pop 0.2s ease-out; }
+        .combo-text { font-size: 1.2rem; color: #ffcc00; font-weight: bold; margin: 0; }
+        
+        .score-text { color: #03DAC6; font-size: 2.2rem; font-weight: bold; text-shadow: 0 0 10px rgba(3, 218, 198, 0.4); }
+        .opp-score-text { color: #ff4a5a; font-size: 2.2rem; font-weight: bold; text-shadow: 0 0 10px rgba(255, 74, 90, 0.4); }
+        .mode-active { background: #6200EE !important; color: white !important; border-color: #8b5cf6 !important; box-shadow: 0 0 12px #6200EE; }
+        
+        /* 👥 動態好友選擇大廳 */
+        .opp-select-box { background: #1a1633; border: 1px solid #3b3561; border-radius: 10px; padding: 12px; margin-top: 10px; display: none; max-height: 180px; overflow-y: auto; }
+        .opp-option { background: #252047; border: 1px solid #4c438a; padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s; }
+        .opp-option:hover, .opp-option.selected { border-color: #ff4a5a; background: #342a66; box-shadow: 0 0 8px rgba(255, 74, 90, 0.4); }
+
+        @keyframes pop { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <a href="/lobby" class="btn btn-sm btn-outline-light px-3" style="border-radius: 20px;"> 返回大廳</a>
+        <h5 class="m-0 fw-bold text-muted">PIKMIN RHYTHM</h5>
+    </div>
+
+    <h3 style="text-align:center; color:#A78BFA; margin-bottom:5px; font-weight: bold;">🎵 節奏派對 3.0</h3>
+  
+    
+    <div class="d-flex mb-3">
+        <button id="btn-single" onclick="setMode('single')" class="btn btn-outline-secondary w-50 me-2 mode-active" style="color: white; border-radius: 8px;">🔮 單人挑戰</button>
+        <button id="btn-double" onclick="setMode('double')" class="btn btn-outline-secondary w-50" style="color: white; border-radius: 8px;">⚔️ 雙人對決</button>
+    </div>
+
+    <div id="opp-selector-panel" class="opp-select-box mb-3">
+        <div class="text-center mb-2 fw-bold" style="color: #ff4a5a; font-size: 14px;">👥 選擇要挑戰的好友紀錄：</div>
+        <div id="friends-list-container">
+            <div class="text-center text-muted py-2" style="font-size:12px;">正在載入好友名單...</div>
+        </div>
+    </div>
+
+    <div class="game-card text-center">
+        <div class="row align-items-center">
+            <div class="col-4">
+                <small style="color: #a0a0ba;">👤 我的分數</small>
+                <div id="my-score" class="score-text">0</div>
+            </div>
+            <div class="col-4" id="opponent-panel" style="display: none; border-left: 1px solid #2d284d; border-right: 1px solid #2d284d;">
+                <small id="opp-name-lbl" style="color: #ff4a5a;">🤖 好友分數</small>
+                <div id="opp-score" class="opp-score-text">0</div>
+            </div>
+            <div class="col">
+                <small style="color: #a0a0ba;">🎯 當前模式</small>
+                <h5 id="current-mode-text" style="color: #A78BFA; margin-top: 8px; font-weight: bold;">單人挑戰</h5>
+            </div>
+        </div>
+    </div>
+
+    <div class="track-container d-flex">
+        <div class="hit-line"></div>
+        <div id="combo-floating">
+            <p id="judge-lbl" class="judge-text"></p>
+            <p id="combo-lbl" class="combo-text"></p>
+        </div>
+        
+        <div id="track-A" class="track" onmousedown="triggerHit('A')" ontouchstart="triggerHit('A'); event.preventDefault();"><span class="key-badge">A</span></div>
+        <div id="track-S" class="track" onmousedown="triggerHit('S')" ontouchstart="triggerHit('S'); event.preventDefault();"><span class="key-badge">S</span></div>
+        <div id="track-D" class="track" onmousedown="triggerHit('D')" ontouchstart="triggerHit('D'); event.preventDefault();"><span class="key-badge">D</span></div>
+    </div>
+
+    <button id="actionBtn" onclick="payAndStart()" style="width:100%; padding:15px; background:#03DAC6; color:black; border:none; border-radius:8px; font-size:16px; font-weight:bold; cursor:pointer; margin-top: 20px; box-shadow: 0 4px 15px rgba(3,218,198,0.3);">
+        🪙 投幣 50 塊！開始遊戲
+    </button>
+
+<script>
+    let score = 0;
+    let oppScore = 0;
+    let combo = 0;
+    let gameInterval = null;
+    let oppInterval = null;
+    let gameMode = "single"; 
+    const tracks = ['A', 'S', 'D'];
+    let audioCtx = null;
+
+    let targetOpponentName = "好友";
+    let targetOpponentHighScore = 0;
+
+    let bgmInterval = null;
+let bgmStep = 0;
+
+function startBGM() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (bgmInterval) clearInterval(bgmInterval);
+    
+    bgmStep = 0;
+    // 配合你的 spawnInterval (800ms)，這裡用 400ms 跑 8 分音符，讓節奏感加倍！
+    bgmInterval = setInterval(() => {
+        try {
+            // 每 4 下一個循環 (0, 1, 2, 3)
+            const beat = bgmStep % 4;
+            
+            // 🥁 動態鼓點合成
+            if (beat === 0) {
+                // 重拍 (大鼓 Kick Effect)：低頻重低音
+                playBeep(80, "triangle", 0.2); 
+                playBeep(50, "sine", 0.25);
+            } else if (beat === 2) {
+                // 小鼓 (Snare Effect)：中頻帶點雜音感
+                playBeep(250, "square", 0.1);
+            } else {
+                // 輕拍 (Hi-Hat Effect)：高頻短促音
+                playBeep(800, "sine", 0.03); 
+            }
+
+            // 🎹 簡單的電子和弦低音隨機走線 (增加旋律感)
+            if (beat === 0 || beat === 2) {
+                const baseFreqs = [130.81, 146.83, 164.81, 196.00]; // C3, D3, E3, G3
+                const randomFreq = baseFreqs[Math.floor(Math.random() * baseFreqs.length)];
+                playBeep(randomFreq, "sine", 0.3);
+            }
+
+            bgmStep++;
+        } catch(e) {}
+    }, 400); // 每 400 毫秒一拍
+}
+
+function stopBGM() {
+    if (bgmInterval) {
+        clearInterval(bgmInterval);
+        bgmInterval = null;
+    }
+}
+
+    function playBeep(frequency, type, duration) {
+        try {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type; osc.frequency.value = frequency;
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + duration);
+        } catch(e){}
+    }
+
+    function setMode(mode) {
+        if (gameInterval) return;
+        gameMode = mode;
+        const singleBtn = document.getElementById('btn-single');
+        const doubleBtn = document.getElementById('btn-double');
+        const modeText = document.getElementById('current-mode-text');
+        const oppPanel = document.getElementById('opponent-panel');
+        const selectorPanel = document.getElementById('opp-selector-panel');
+        
+        if (mode === 'single') {
+            singleBtn.classList.add('mode-active');
+            doubleBtn.classList.remove('mode-active');
+            modeText.innerText = "單人挑戰";
+            modeText.style.color = "#A78BFA";
+            oppPanel.style.display = "none";
+            selectorPanel.style.display = "none";
+        } else {
+            doubleBtn.classList.add('mode-active');
+            singleBtn.classList.remove('mode-active');
+            modeText.innerText = "雙人對決";
+            modeText.style.color = "#ff4a5a";
+            oppPanel.style.display = "block";
+            selectorPanel.style.display = "block";
+            
+            loadFriendsList();
+        }
+    }
+
+function loadFriendsList() {
+    console.log("=== 觸發動態專屬好友撈取 ===");
+    const container = document.getElementById('friends-list-container');
+    if (!container) return;
+    
+    container.innerHTML = `<div class="text-center text-muted py-2" style="font-size:12px;">⏳ 正在即時讀取您的專屬時空名單...</div>`;
+
+    fetch('/api/game_rhythm_friends')
+    .then(res => {
+        if (!res.ok) throw new Error("後端連線中斷或未登入");
+        return res.json();
+    })
+    .then(data => {
+        if (data.success && data.friends && data.friends.length > 0) {
+            console.log("成功拿到該帳號的專屬好友名單：", data.friends);
+            renderFriendsToUI(data.friends);
+        } else {
+            showEmptyMessage("目前您的帳號尚未建立任何好友關係喔！");
+        }
+    })
+    .catch(err => {
+        console.error("API 錯誤或斷線，啟動大廳現場盲抓保底:", err);
+        
+        const allElements = document.querySelectorAll('div, li, span, p');
+        let foundFallback = [];
+        const welcomeText = document.body.innerText; // 🎯 修正：確保 welcomeText 在這裡正確被宣告
+        
+        allElements.forEach(el => {
+            if (el.innerText && el.innerText.includes("時空已連線")) {
+                let cleanName = el.innerText
+                    .replace("(時空已連線)", "")
+                    .replace("🟢", "")
+                    .replace("●", "")
+                    .trim();
+                
+                if (cleanName && !welcomeText.includes(`歡迎回來，${cleanName}`) && !foundFallback.some(f => f.name.trim() === cleanName)) {
+                    foundFallback.push({ name: cleanName, high_score: 0 });
+                }
+            }
+        });
+
+        if (foundFallback.length === 0) {
+            let myName = "新旅人";
+            const matchWelcome = welcomeText.match(/歡迎回來，\s*([^\s]+)/);
+            if (matchWelcome && matchWelcome[1]) myName = matchWelcome[1].trim();
+
+            foundFallback.push(
+                { name: "官方小精靈", high_score: 85 },
+                { name: `時空幻影-${myName}`, high_score: 0 }
+            );
+        }
+
+        renderFriendsToUI(foundFallback);
+    });
+} 
+
+// ==========================================
+// 📡 獨立的自動雷達：加入 .trim() 防止空白字元搞鬼
+// ==========================================
+if (!window.rhythmFriendTimer) {
+    window.rhythmFriendTimer = setInterval(() => {
+        if (typeof gameMode !== 'undefined' && gameMode === 'double') {
+            console.log("📡 自動雷達：正在背景即時同步好友最新最高分...");
+            
+            fetch('/api/game_rhythm_friends')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.friends && data.friends.length > 0) {
+                    const currentSelectedName = targetOpponentName ? targetOpponentName.trim() : null;
+                    
+                    renderFriendsToUI(data.friends);
+                    
+                    if (currentSelectedName) {
+                        // 🎯 核心補強：比對時全部強迫轉字串並去空白，防止資料庫或前端抓取時夾帶隱形空格
+                        const matched = data.friends.find(f => {
+                            const fName = (f.name || f.nickname || "").toString().trim();
+                            return fName === currentSelectedName;
+                        });
+                        
+                        if (matched) {
+                            targetOpponentHighScore = parseInt(matched.high_score !== undefined ? matched.high_score : (matched.highest_score || 0));
+                            const lbl = document.getElementById('opp-name-lbl');
+                            if (lbl) lbl.innerText = `👤 ${currentSelectedName}`;
+                        }
+                    }
+                }
+            })
+            .catch(err => console.log("背景同步分數稍卡，等待下一輪更新...", err));
+        }
+    }, 3000);
+}
+
+// 🛡️ 萬一後端 API 卡住時的「自動複印大廳文字」第二道防線
+function bindLobbyTextFallback() {
+    const container = document.getElementById('friends-list-container');
+    if (!container) return;
+    
+    const pageText = document.body.innerText;
+    let found = [];
+    
+    ["小綠", "ee", "11", "大和"].forEach(name => {
+        if (pageText.includes(name) && !pageText.includes(`👤 ${name}`)) {
+            found.push(name.trim());
+        }
+    });
+
+    if (found.length > 0) {
+        container.innerHTML = "";
+        found.forEach((playerName, index) => {
+            const div = document.createElement('div');
+            div.className = `opp-option ${index === 0 ? 'selected' : ''}`;
+            div.onclick = function() {
+                targetOpponentName = playerName;
+                targetOpponentHighScore = 0;
+                document.getElementById('opp-name-lbl').innerText = `👤 ${playerName}`;
+            };
+            div.innerHTML = `<div>👤 <strong>${playerName}</strong></div><span class="badge bg-danger">最高分: 0</span>`;
+            container.appendChild(div);
+        });
+    } else {
+        container.innerHTML = `<div class="text-center text-danger py-2" style="font-size:12px;">❌ 無法同步好友資料，請重新整理網頁</div>`;
+    }
+}
+
+// 🎨 輔助函式：負責把名單畫到網頁畫面上（加入安全去空白）
+function renderFriendsToUI(friendsArray) {
+    const container = document.getElementById('friends-list-container');
+    if (!container) return;
+    container.innerHTML = ""; 
+
+    // 🎯 核心補強：先記住玩家在點選刷新前，畫面上「正在鎖定」的對手是誰
+    const currentLockedName = targetOpponentName ? targetOpponentName.trim() : "";
+
+    friendsArray.forEach((friend) => {
+        const score = friend.high_score !== undefined ? friend.high_score : (friend.highest_score || 0);
+        const displayName = (friend.name || friend.nickname || "未知好友").toString().trim();
+
+        const div = document.createElement('div');
+        // 🎯 修正：如果這個人的名字就是當前鎖定的名字，就讓他維持高亮選取狀態！
+        div.className = `opp-option ${displayName === currentLockedName ? 'selected' : ''}`;
+        
+        div.onclick = function() {
+            document.querySelectorAll('.opp-option').forEach(opt => opt.classList.remove('selected'));
+            this.classList.add('selected');
+            targetOpponentName = displayName;
+            targetOpponentHighScore = parseInt(score);
+            document.getElementById('opp-name-lbl').innerText = `👤 ${displayName}`;
+            playBeep(440, "sine", 0.05);
+        };
+        
+        div.innerHTML = `<div>👤 <strong>${displayName}</strong></div><span class="badge bg-danger">最高分: ${score}</span>`;
+        container.appendChild(div);
+    });
+
+    // 🎯 修正：如果目前沒有鎖定任何人（剛進畫面），才默認選第一個
+    if (!currentLockedName && friendsArray.length > 0) {
+        const firstFriend = friendsArray[0];
+        const firstScore = firstFriend.high_score !== undefined ? firstFriend.high_score : (firstFriend.highest_score || 0);
+        const firstDisplayName = (firstFriend.name || firstFriend.nickname || "未知好友").toString().trim();
+        
+        targetOpponentName = firstDisplayName;
+        targetOpponentHighScore = parseInt(firstScore);
+        const lbl = document.getElementById('opp-name-lbl');
+        if (lbl) lbl.innerText = `👤 ${firstDisplayName}`;
+        
+        // 讓第一個元素高亮
+        const firstEl = container.querySelector('.opp-option');
+        if (firstEl) firstEl.classList.add('selected');
+    }
+}
+
+// 🔔 輔助函式：顯示空訊息
+function showEmptyMessage(msg) {
+    const container = document.getElementById('friends-list-container');
+    if (container) {
+        container.innerHTML = `<div class="text-center text-muted py-2" style="font-size:12px;">${msg}</div>`;
+    }
+}
+
+// 🎯 傳送總分至後端
+function uploadFinalScoreToBackend(finalScore) {
+    console.log("🎮 遊戲結束！正在將本次分數上傳至後端資料庫:", finalScore);
+
+    fetch('/api/upload_score', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ score: parseInt(finalScore) })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            console.log("✅ 成功存入資料庫！最新的最高分為:", data.my_best);
+            if (typeof loadFriendsList === 'function') {
+                loadFriendsList();
+            }
+        } else {
+            console.error("❌ 後端拒絕寫入分數:", data.msg);
+        }
+    })
+    .catch(err => console.error("❌ 上傳分數時發生網路錯誤:", err));
+}
+
+    function payAndStart() {
+        fetch('/game/pay', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+        .then(res => res.json()).catch(() => { return { success: true }; })
+        .then(data => {
+            if (data.success) {
+                playBeep(330, "sine", 0.15);
+                startGame();
+            } else { alert(data.msg || "金幣不足！"); }
+        });
+    }
+
+    function startGame() {
+        score = 0; oppScore = 0; combo = 0;
+        document.getElementById('my-score').innerText = score;
+        document.getElementById('opp-score').innerText = oppScore;
+        document.getElementById('judge-lbl').innerText = "";
+        document.getElementById('combo-lbl').innerText = "";
+        document.getElementById('actionBtn').disabled = true;
+        document.getElementById('actionBtn').style.background = "#333";
+        
+        startBGM();
+        let ticks = 0;
+        const totalDuration = 15000; 
+        const spawnInterval = 800;   
+        const totalNotes = Math.floor(totalDuration / spawnInterval); 
+
+        const scorePerTick = targetOpponentHighScore / totalNotes;
+
+        gameInterval = setInterval(() => {
+            const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
+            spawnNote(randomTrack);
+            ticks++;
+            if (ticks % 2 === 0) playBeep(130, "triangle", 0.08);
+            else playBeep(100, "triangle", 0.08);
+        }, spawnInterval);
+
+        if (gameMode === "double") {
+            let currentTick = 0;
+            oppInterval = setInterval(() => {
+                currentTick++;
+                oppScore = Math.round(scorePerTick * currentTick);
+                if (oppScore > targetOpponentHighScore) oppScore = targetOpponentHighScore;
+                
+                document.getElementById('opp-score').innerText = oppScore;
+                
+                if (currentTick >= totalNotes) clearInterval(oppInterval);
+            }, spawnInterval);
+        }
+
+        const thisGameTimeout = setTimeout(() => { 
+            if (gameInterval) {
+                endGame(); 
+            }
+        }, totalDuration + 1000);
+    }
+
+    function spawnNote(trackKey) {
+        const trackElement = document.getElementById(`track-${trackKey}`);
+        const note = document.createElement('div');
+        note.innerText = "👹"; note.className = 'note-item';
+        trackElement.appendChild(note);
+
+        setTimeout(() => { note.style.top = '380px'; }, 20);
+
+        setTimeout(() => {
+            if (note.parentNode) {
+                showVisualJudge("Miss", "#ff4a5a");
+                combo = 0; document.getElementById('combo-lbl').innerText = "";
+                playBeep(70, "sawtooth", 0.12);
+                note.remove();
+            }
+        }, 1650);
+    }
+
+    function triggerHit(key) {
+        const track = document.getElementById(`track-${key}`);
+        track.classList.add('active-flash');
+        setTimeout(() => track.classList.remove('active-flash'), 100);
+
+        const notes = track.querySelectorAll('.note-item');
+        let hitSuccess = false;
+
+        for (let note of notes) {
+            const currentTop = parseInt(window.getComputedStyle(note).top);
+            if (currentTop >= 280 && currentTop <= 345) {
+                let points = 10; let judgeStr = "Great"; let judgeColor = "#00f2fe";
+
+                if (Math.abs(currentTop - 315) <= 15) {
+                    points = 15; judgeStr = "Perfect 🔥"; judgeColor = "#03DAC6";
+                    playBeep(659.25, "sine", 0.1);
+                } else { playBeep(523.25, "sine", 0.1); }
+
+                score += points; combo++;
+                document.getElementById('my-score').innerText = score;
+                showVisualJudge(judgeStr, judgeColor);
+                note.remove(); hitSuccess = true; break;
+            }
+        }
+
+        if (!hitSuccess && gameInterval) {
+            showVisualJudge("Bad ❌", "#888");
+            combo = 0; document.getElementById('combo-lbl').innerText = "";
+            playBeep(80, "sawtooth", 0.08);
+        }
+    }
+
+    function showVisualJudge(text, color) {
+        const jLbl = document.getElementById('judge-lbl');
+        const cLbl = document.getElementById('combo-lbl');
+        jLbl.innerText = text; jLbl.style.color = color;
+        jLbl.style.animation = 'none'; jLbl.offsetHeight; jLbl.style.animation = 'pop 0.15s ease-out';
+        if (combo > 1) cLbl.innerText = `${combo} COMBO`;
+    }
+    
+    window.addEventListener('keydown', (e) => {
+        const key = e.key.toUpperCase();
+        if (tracks.includes(key)) triggerHit(key);
+    });
+
+function endGame() {
+    stopBGM();
+    clearInterval(gameInterval); clearInterval(oppInterval);
+    gameInterval = null; oppInterval = null;
+
+    const startBtn = document.getElementById('actionBtn');
+    startBtn.disabled = false; startBtn.style.background = "#03DAC6";
+    
+    playBeep(440, "sine", 0.2);
+    
+    fetch('/api/upload_score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ score: score })
+    })
+    .then(res => res.json())
+    .then(data => {
+        let recordMsg = data.is_new_record ? "🔥 恭喜創下個人新高紀錄！" : `(個人歷史最高: ${data.my_best})`;
+        
+        if (gameMode === "single") {
+            alert(`🏁 挑戰結束！\n你獲得了 ${score} 分！\n${recordMsg}`);
+        } else {
+            // 🎯 勝負直白判定
+            let winStatus = "";
+            if (score > targetOpponentHighScore) {
+                winStatus = `🏆 你贏了！成功擊敗 ${targetOpponentName}！`;
+            } else if (score < targetOpponentHighScore) {
+                winStatus = `❌ 你輸了！分數低於 ${targetOpponentName}。`;
+            } else {
+                winStatus = `🤝 平手！你與 ${targetOpponentName} 同分！`;
+            }
+            
+            // 彈出正義的結算視窗，拒絕睜眼說瞎話！
+            alert(`⚔️ 雙人對決結算 ⚔️\n\n【${winStatus}】\n\n你的得分：${score} 分\n對手 (${targetOpponentName}) 的最高紀錄：${targetOpponentHighScore} 分\n\n${recordMsg}`);
+        }
+        
+        if (typeof loadFriendsList === 'function') {
+            loadFriendsList();
+        }
+    });
+}
+</script>
+</body>
+</html>

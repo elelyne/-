@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>心靈解碼器：Big Five 五大性格特質</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --accent-purple: #8338ec;
+            --accent-cyan: #3a86ff;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            background-image: radial-gradient(circle at 50% 50%, #1e1b4b 0%, #0f172a 100%);
+        }
+
+        .glass-container {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            margin-top: 40px;
+            margin-bottom: 40px;
+        }
+
+        .ocean-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .ocean-header h1 {
+            font-weight: 800;
+            background: linear-gradient(135deg, #3a86ff, #8338ec, #ff006e);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 15px;
+        }
+
+        /* 題目卡片設計 */
+        .quiz-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .quiz-card:hover {
+            border-color: rgba(131, 56, 236, 0.4);
+            transform: translateY(-2px);
+        }
+
+        /* 答案選項排列 (五點量表) */
+        .options-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            position: relative;
+        }
+
+        .option-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            flex: 1;
+            text-align: center;
+        }
+
+        /* 大圓圈與小圓圈大小 */
+        .radio-dot {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--text-muted);
+            border-radius: 50%;
+            margin-bottom: 8px;
+            transition: all 0.2s ease;
+            background: transparent;
+        }
+
+        /* 中間「沒意見」縮小，兩側「非常同意/不同意」放大 */
+        .opt-0 .radio-dot, .opt-4 .radio-dot { width: 28px; height: 28px; border-color: #3a86ff; }
+        .opt-1 .radio-dot, .opt-3 .radio-dot { width: 22px; height: 22px; border-color: #a855f7; }
+        .opt-2 .radio-dot { width: 16px; height: 16px; border-color: var(--text-muted); }
+
+        /* 點選後的亮燈特效 */
+        input[type="radio"] { display: none; }
+        input[type="radio"]:checked + .radio-dot {
+            background: radial-gradient(circle, #f8fafc 30%, var(--accent-purple) 70%);
+            box-shadow: 0 0 15px var(--accent-purple);
+            border-color: #f8fafc;
+        }
+
+        .opt-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            border: none;
+            padding: 12px 40px;
+            font-weight: 600;
+            border-radius: 30px;
+            color: white;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(131, 56, 236, 0.4);
+        }
+
+        .submit-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(131, 56, 236, 0.6);
+        }
+
+        /* 結果區隱藏 */
+        #result-section {
+            display: none;
+        }
+
+        .advice-box {
+            background: rgba(131, 56, 236, 0.1);
+            border-left: 4px solid var(--accent-purple);
+            padding: 15px;
+            border-radius: 0 10px 10px 0;
+            margin-bottom: 15px;
+        }
+
+        .chart-wrapper {
+            max-width: 450px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="glass-container">
+        
+        
+
+        <div id="quiz-section">
+            <div class="ocean-header">
+                <h1>五大性格特質：OCEAN探測</h1>
+                <p class="text-muted">科學量表剖析核心精神雷達</p>
+            </div>
+
+            <form id="ocean-form">
+                {% for q in questions %}
+                <div class="quiz-card">
+                    <div class="fw-bold fs-5 mb-3">Q{{ loop.index }}. {{ q.text }}</div>
+                    <div class="options-group">
+                        <label class="option-item opt-0">
+                            <input type="radio" name="q_{{ q.id }}" value="0" required>
+                            <div class="radio-dot"></div>
+                            <span class="opt-label">非常同意</span>
+                        </label>
+                        <label class="option-item opt-1">
+                            <input type="radio" name="q_{{ q.id }}" value="1">
+                            <div class="radio-dot"></div>
+                            <span class="opt-label">同意</span>
+                        </label>
+                        <label class="option-item opt-2">
+                            <input type="radio" name="q_{{ q.id }}" value="2">
+                            <div class="radio-dot"></div>
+                            <span class="opt-label">沒意見</span>
+                        </label>
+                        <label class="option-item opt-3">
+                            <input type="radio" name="q_{{ q.id }}" value="3">
+                            <div class="radio-dot"></div>
+                            <span class="opt-label">不同意</span>
+                        </label>
+                        <label class="option-item opt-4">
+                            <input type="radio" name="q_{{ q.id }}" value="4">
+                            <div class="radio-dot"></div>
+                            <span class="opt-label">非常不同意</span>
+                        </label>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <div class="text-center mt-5">
+                    <button type="submit" class="submit-btn fs-5">
+                        <i class="fa-solid fa-chart-pie me-2"></i> 生成雷達圖
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div id="result-section">
+            <div class="ocean-header">
+                <h1>解碼完成</h1>
+                <p id="result-summary" class="fs-5 text-info px-3"></p>
+            </div>
+
+            <div class="row align-items-center mt-5">
+                <div class="col-md-6 mb-4">
+                    <div class="chart-wrapper">
+                        <canvas id="oceanRadarChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h3 class="mb-4 text-warning"><i class="fa-solid fa-heart-pulse me-2"></i> 診斷報告</h3>
+                    <div id="advice-container"></div>
+                     <div class="text-center mt-5">
+                        <a href="/quiz" class="btn btn-outline-secondary px-4 me-2" style="border-radius: 20px;">重新測驗</a>
+                        <a href="/lobby" class="btn btn-secondary px-4" style="border-radius: 20px;">返回大廳</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+document.getElementById('ocean-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // 打包答案
+    const formData = new FormData(this);
+    const answers = {};
+    for (let [key, value] of formData.entries()) {
+        const qid = key.replace('q_', '');
+        answers[qid] = parseInt(value);
+    }
+
+    // 發送異步異步請求到後端
+    fetch('/o/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers: answers })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.success) {
+            // 隱藏題目，亮出結果區
+            document.getElementById('quiz-section').style.display = 'none';
+            document.getElementById('result-section').style.display = 'block';
+            document.getElementById('result-summary').innerText = data.summary;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // 渲染處方 advice
+            const container = document.getElementById('advice-container');
+            container.innerHTML = '';
+            data.advice.forEach(adv => {
+                const box = document.createElement('div');
+                box.className = 'advice-box';
+                box.innerHTML = `<p class="mb-0 text-light">${adv}</p>`;
+                container.appendChild(box);
+            });
+
+            // 🌟 核心：啟動 Chart.js 畫出絕美雷達圖
+            const p = data.percentages;
+            const ctx = document.getElementById('oceanRadarChart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: ['開放性 (O)', '嚴謹性 (C)', '外向性 (E)', '親和性 (A)', '神經質 (N)'],
+                    datasets: [{
+                        label: '精神能量百分比 (%)',
+                        data: [p.O, p.C, p.E, p.A, p.N],
+                        backgroundColor: 'rgba(131, 56, 236, 0.25)',
+                        borderColor: '#8338ec',
+                        pointBackgroundColor: '#3a86ff',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#ff006e',
+                        borderWidth: 3,
+                        pointerRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(255,255,255,0.1)' },
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            pointLabels: { color: '#f8fafc', font: { size: 14, weight: 'bold' } },
+                            ticks: { display: false }, // 隱藏討厭的背景數字
+                            suggestedMin: 0,
+                            suggestedMax: 100
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8' } }
+                    }
+                }
+            });
+
+        } else {
+            alert('矩陣重組失敗：' + data.message);
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('系統時空鏈接發生錯誤，請檢查路由配置。');
+    });
+});
+</script>
+
+</body>
+</html>

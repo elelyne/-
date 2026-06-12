@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>何倫碼（RIASEC）職涯發展適配度測驗</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f0c1b 0%, #1a103c 50%, #0d0b14 100%);
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --accent-purple: #9d4edf;
+            --accent-cyan: #00f2fe;
+            --text-main: #f1f1f6;
+            --text-muted: #a0a0ba;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* 頂部標題 */
+        .quiz-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .quiz-header h1 {
+            font-size: 2.2rem;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .quiz-header p {
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        /* 卡片共用樣式 */
+        .glass-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            transition: all 0.3s ease;
+        }
+
+        /* 測驗問題區塊 */
+        .question-box {
+            display: none; /* 預設隱藏，由 JS 控制逐題顯示 */
+        }
+
+        .question-box.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .q-meta {
+            display: inline-block;
+            background: rgba(157, 78, 223, 0.2);
+            color: #d1b3ff;
+            padding: 6px 14px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            margin-bottom: 15px;
+            border: 1px solid rgba(157, 78, 223, 0.3);
+        }
+
+        .q-text {
+            font-size: 1.3rem;
+            line-height: 1.6;
+            margin-bottom: 25px;
+            font-weight: 500;
+        }
+
+        .options-list {
+            list-style: none;
+        }
+
+        .option-btn {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 16px 20px;
+            border-radius: 12px;
+            color: var(--text-main);
+            text-align: left;
+            font-size: 1.05rem;
+            cursor: pointer;
+            margin-bottom: 12px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+        }
+
+        .option-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--accent-cyan);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 242, 254, 0.2);
+        }
+
+        .option-btn i {
+            margin-right: 12px;
+            color: var(--accent-cyan);
+        }
+
+        /* 進度條 */
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            margin-top: 30px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple));
+            transition: width 0.3s ease;
+        }
+
+        /* 結果畫面樣式 */
+        #result-container {
+            display: none;
+            animation: slideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .result-header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--glass-border);
+            margin-bottom: 25px;
+        }
+
+        .badge-code {
+            font-size: 3.5rem;
+            font-weight: 800;
+            letter-spacing: 4px;
+            background: linear-gradient(45deg, #ff007f, #00f2fe, #9d4edf);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(0, 242, 254, 0.3);
+            margin: 10px 0;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            margin-bottom: 20px;
+            color: var(--accent-cyan);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* 六力雷達進度條 */
+        .stat-row {
+            margin-bottom: 18px;
+        }
+
+        .stat-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            font-size: 0.95rem;
+        }
+
+        .stat-label .dim-name {
+            font-weight: 500;
+        }
+
+        .stat-label .dim-score {
+            color: var(--accent-cyan);
+            font-weight: bold;
+        }
+
+        .stat-bar-bg {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .stat-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #5335cf, var(--accent-purple));
+            border-radius: 5px;
+            width: 0%; 
+            transition: width 1.5s cubic-bezier(0.1, 1, 0.1, 1);
+        }
+
+        /* 推薦職業列表 */
+        .job-tag-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .job-tag {
+            background: rgba(0, 242, 254, 0.05);
+            border: 1px solid rgba(0, 242, 254, 0.15);
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .job-tag:hover {
+            background: rgba(0, 242, 254, 0.12);
+            transform: translateX(5px);
+        }
+
+        /* 健康日誌交叉分析 */
+        .advice-item {
+            background: rgba(255, 255, 255, 0.02);
+            border-left: 4px solid var(--accent-purple);
+            padding: 12px 18px;
+            margin-bottom: 10px;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.95rem;
+            color: #d1d1e0;
+        }
+
+        /* 金幣發放通知效果 */
+        .coin-alert {
+            background: linear-gradient(90deg, #ff9900, #ffcc00);
+            color: #201400;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 25px;
+            box-shadow: 0 0 20px rgba(255, 204, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        /* 動畫效果庫 */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <div id="quiz-container">
+        <div class="quiz-header">
+            <h1>職涯星圖：何倫碼適配度探測</h1>
+            <p>探索你的核心內在興趣，解鎖最具幸福感的職業星軌</p>
+        </div>
+
+        {% if questions %}
+            {% for q in questions %}
+                <div class="glass-card question-box {% if loop.first %}active{% endif %}" data-qid="{{ q.id }}" data-index="{{ loop.index0 }}">
+                    <div class="q-meta">探索特質 🪐 {{ loop.index }} / {{ questions|length }}</div>
+                    <div class="q-text">{{ q.text }}</div>
+                    
+                    <div class="options-list">
+                        {% for choice in q.choices %}
+                            <button class="option-btn" onclick="selectAnswer('{{ q.id }}', '{{ loop.index0 }}')">
+                                <i class="fa-regular fa-circle-dot"></i> {{ choice.text }}
+                            </button>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+            
+            <div class="progress-container">
+                <div class="progress-bar" id="top-progress"></div>
+            </div>
+
+            <div id="holland-desc" style="margin-top: 25px;"></div>
+        {% else %}
+            <div class="glass-card" style="text-align:center;">
+                <p>題庫載入失敗或目前沒有題目，請重新整理頁面試試看。</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <div id="result-container">
+        
+        <div class="coin-alert">
+            <i class="fa-solid fa-coins fa-spin"></i>
+            <span>探測完成！已發放50金幣獎勵至您的帳戶！</span>
+        </div>
+
+        <div class="glass-card result-header">
+            <h2 style="font-size: 1.4rem; color: var(--text-muted);">您專屬的何倫人格編碼</h2>
+            <div class="badge-code" id="res-holland-code">SEC</div>
+            <p id="res-summary" style="line-height: 1.6; max-width: 650px; margin: 15px auto 0; font-size: 1.05rem;"></p>
+        </div>
+
+        <div class="glass-card">
+            <div class="section-title"><i class="fa-solid fa-chart-radar"></i> 核心興趣六維能量圖譜</div>
+            <div id="riasec-bars-container"></div>
+        </div>
+
+        <div class="glass-card">
+            <div class="section-title"><i class="fa-solid fa-briefcase"></i> 契合星軌：高媒合度職業推薦</div>
+            <div class="job-tag-container" id="res-jobs-container"></div>
+        </div>
+
+        <div class="text-center mt-5" style="text-align: center; margin-top: 30px;">
+            <a href="/h" class="btn btn-outline-secondary px-4 me-2" style="border-radius: 20px; display: inline-block; padding: 10px 20px; color: var(--text-muted); border: 1px solid var(--glass-border); text-decoration: none; margin-right: 10px;">重新測驗</a>
+            <a href="/lobby" class="btn btn-secondary px-4" style="border-radius: 20px; display: inline-block; padding: 10px 20px; background: rgba(255,255,255,0.1); color: #fff; text-decoration: none;">返回大廳</a>
+        </div>
+        
+    </div>
+
+</div>
+
+<script>
+    let userAnswers = {};
+    const totalQuestions = parseInt("{{ questions|length }}") || 0;
+
+    function selectAnswer(questionId, choiceIndex) {
+        userAnswers[questionId] = choiceIndex;
+
+        const currentCard = document.querySelector('.question-box.active');
+        const currentIndex = parseInt(currentCard.getAttribute('data-index'));
+        
+        const progressPercent = ((currentIndex + 1) / totalQuestions) * 100;
+        document.getElementById('top-progress').style.width = progressPercent + '%';
+
+        if (currentIndex < totalQuestions - 1) {
+            currentCard.classList.remove('active');
+            const nextCard = document.querySelector(`[data-index="${currentIndex + 1}"]`);
+            nextCard.classList.add('active');
+        } else {
+            submitHollandQuiz();
+        }
+    }
+
+    function submitHollandQuiz() {
+        // 🎯 這裡優化：加上安全防呆鎖，雙重確保絕不報錯
+        const descElem = document.getElementById('holland-desc');
+        
+        if (descElem) {
+            descElem.innerHTML = `
+                <div class="glass-card" style="text-align:center; padding:50px; margin-top:20px;">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size:3rem; color:var(--accent-cyan); margin-bottom:20px;"></i>
+                    <h2>量子特質矩陣精算中...</h2>
+                    <p style="color: var(--text-muted); margin-top: 10px;">正在透過 56 維天平解密您的靈魂星軌</p>
+                </div>
+            `;
+        } else {
+            console.log('提示：未在當前畫面找到 holland-desc 元素，跳過載入動畫。');
+        }
+
+        fetch('/h/submit', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ answers: userAnswers })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("後端伺服器回應錯誤，狀態碼: " + response.status);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                renderResultPage(data);
+            } else {
+                alert("測驗提交失敗：" + data.message);
+                window.location.reload();
+            }
+        })
+        .catch(error => {
+            console.error("提交錯誤細節:", error);
+            alert("系統時空鏈接發生錯誤，請稍後再試！");
+        });
+    }
+
+    function renderResultPage(data) {
+        document.getElementById('quiz-container').style.display = 'none';
+        const resultContainer = document.getElementById('result-container');
+        resultContainer.style.display = 'block';
+
+        document.getElementById('res-holland-code').innerText = data.report.holland_code;
+        document.getElementById('res-summary').innerText = data.report.summary;
+
+        const barsContainer = document.getElementById('riasec-bars-container');
+        barsContainer.innerHTML = ''; 
+        
+        data.sorted_types.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'stat-row';
+            row.innerHTML = `
+                <div class="stat-label">
+                    <span class="dim-name"><strong>${item.type}</strong> - ${item.name} <span style="color:var(--text-muted); font-size:0.85rem; margin-left:8px;">(${item.title})</span></span>
+                    <span class="dim-score">${item.score} 分</span>
+                </div>
+                <div class="stat-bar-bg">
+                    <div class="stat-bar-fill" data-percent="${item.percent}"></div>
+                </div>
+                <p style="color:var(--text-muted); font-size:0.85rem; margin-top:5px; line-height:1.4;">${item.desc}</p>
+                <hr style="border:none; border-top:1px solid rgba(255,255,255,0.03); margin:12px 0;">
+            `;
+            barsContainer.appendChild(row);
+        });
+
+        const jobsContainer = document.getElementById('res-jobs-container');
+        jobsContainer.innerHTML = '';
+        data.report.jobs.forEach(job => {
+            const tag = document.createElement('div');
+            tag.className = 'job-tag';
+            tag.innerHTML = `<i class="fa-solid fa-star" style="color:#ffcc00;"></i> <span>${job}</span>`;
+            jobsContainer.appendChild(tag);
+        });
+
+        const adviceContainer = document.getElementById('res-advice-container');
+        if (adviceContainer && data.report.advice) {
+            adviceContainer.innerHTML = '';
+            data.report.advice.forEach(adv => {
+                const advBox = document.createElement('div');
+                advBox.className = 'advice-item';
+                advBox.innerText = adv;
+                adviceContainer.appendChild(advBox);
+            });
+        }
+
+        setTimeout(() => {
+            const fills = document.querySelectorAll('.stat-bar-fill');
+            fills.forEach(bar => {
+                const targetPercent = bar.getAttribute('data-percent');
+                bar.style.width = targetPercent + '%';
+            });
+        }, 150);
+    }
+</script>
+
+</body>
+</html>

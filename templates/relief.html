@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<div class="container my-4" style="max-width: 480px;">
+    <div class="text-center mb-3">
+        <h3 class="fw-bold text-success">🌱 散步軌跡模式</h3>
+        <p class="text-muted small">手機保持開啟，我們正通過 GPS 記錄你的運動路徑</p>
+    </div>
+
+    <div id="map" style="height: 350px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 20px; background-color: #f8fafc;"></div>
+
+    <div class="card border-0 shadow-sm p-3 mb-4" style="border-radius: 12px; background: #f8fafc;">
+        <div class="row text-center">
+            <div class="col-6">
+                <small class="text-muted d-block">🐾 本次新增步數</small>
+                <h2 id="step-count" class="fw-bold text-success mt-1">0</h2>
+            </div>
+            <div class="col-6">
+                <small class="text-muted d-block">🪙 預計收益</small>
+                <h2 id="coin-preview" class="fw-bold text-warning mt-1">0</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center mb-3">
+        <span class="badge bg-light text-secondary p-2">今日資料庫已累計步數：{{ current_steps }} 步</span>
+    </div>
+
+    <div class="mb-4">
+        <button id="startBtn" onclick="toggleWalking()" class="btn btn-success w-100 py-3 fw-bold shadow-sm" style="border-radius: 30px; font-size: 16px;">
+            🚶‍♂️ 開始散步
+        </button>
+    </div>
+</div>
+
+<script>
+    // 1. 初始化地圖（維持跟隨，但不再用來算步數）
+    const map = L.map('map').setView([22.625, 120.325], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    let userMarker = null;
+    let pathLine = L.polyline([], {color: '#22c55e', weight: 5}).addTo(map);
+    let isWalking = false;
+
+    // 2. 物理計步器核心變數
+    let totalSteps = 0;
+    let lastX = null, lastY = null, lastZ = null;
+    let lastStepTime = 0;
+    const SHAKE_THRESHOLD = 11; // 震動門檻值（數值越小越靈敏，可根據測試調整，通常 10~13 之間最適當）
+
+    // 按鈕切換開關
+    function toggleWalking() {
+        isWalking = !isWalking;
+        const btn = document.getElementById('startBtn');
+        if (isWalking) {
+            btn.innerText = "暫停記錄";
+            btn.className = "btn btn-danger w-100 py-3 fw-bold shadow-sm";
+            
+            // 💡 iOS 蘋果手機需要特別點擊授權感應器
+            requestMotionPermission();
+        } else {
+            btn.innerText = "開始散步";
+            btn.className = "btn btn-success w-100 py-3 fw-bold shadow-sm";
+        }
+    }
+
+    // 3. 監聽手機物理震動的感應器邏輯
+    function startMotionListener() {
+        window.addEventListener('devicemotion', (event) => {
+            if (!isWalking) return;
+
+            // 取得三個軸向的加速度（包含重力）
+            const acc = event.accelerationIncludingGravity;
+            if (!acc || acc.x === null || acc.y === null || acc.z === null) return;
+
+            const currentTime = new Date().getTime();
+
+            if (lastX !== null) {
+                // 計算前後兩次晃動的物理差距 (Delta)
+                const deltaX = Math.abs(lastX - acc.x);
+                const deltaY = Math.abs(lastY - acc.y);
+                const deltaZ = Math.abs(lastZ - acc.z);
+
+                // 如果任何一個方向的震動大力程度超過了門檻，且距離上一步超過 300 毫秒（防止一秒內震動算好幾步）
+                if ((deltaX > SHAKE_THRESHOLD || deltaY > SHAKE_THRESHOLD || deltaZ > SHAKE_THRESHOLD) && 
+                    (currentTime - lastStepTime > 300)) {
+                    
+                    totalSteps += 1; // 踏出實質的一步！
+                    lastStepTime = currentTime;
+
+                    // 更新網頁畫面上的數字
+                    document.getElementById('step-count').innerText = totalSteps;
+                    document.getElementById('coin-preview').innerText = Math.floor(totalSteps / 10);
+
+                    // 🚀 每走 1 步就即時回傳給 Flask 後台 SQLite
+                    sendStepsToBackend(1);
+                }
+            }
+
+            // 紀錄當前速度作為下一次比對基準
+            lastX = acc.x;
+            lastY = acc.y;
+            lastZ = acc.z;
+        });
+    }
+
+    // 🍏 專為 iPhone (iOS) 設想的權限索取功能
+    function requestMotionPermission() {
+        if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+            DeviceMotionEvent.requestPermission()
+                .then(permissionState => {
+                    if (permissionState === 'granted') {
+                        startMotionListener();
+                    } else {
+                        alert("若不允許感應器權限，將無法使用震動計步功能喔！");
+                    }
+                })
+                .catch(console.error);
+        } else {
+            // Android 或是電腦瀏覽器，直接啟動
+            startMotionListener();
+        }
+    }
+
+    // 🚀 將步數即時打回 Flask 後台
+    function sendStepsToBackend(stepsToAdd) {
+        // 如果有抓到 GPS 座標，順便傳回去，沒有就傳 null
+        const currentLat = userMarker ? userMarker.getLatLng().lat : null;
+        const currentLng = userMarker ? userMarker.getLatLng().lng : null;
+
+        fetch('/api/update_steps', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                steps: stepsToAdd,
+                lat: currentLat,
+                lng: currentLng
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log("物理步數同步成功！後台目前總步數為:", data.total_steps);
+            }
+        })
+        .catch(err => console.error("同步失敗:", err));
+    }
+
+    // 🗺️ GPS 地圖純觀賞/畫線用，跟隨小藍點
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(position => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+
+            if (userMarker === null) {
+                userMarker = L.marker([lat, lng]).addTo(map).bindPopup("你的位置").openPopup();
+            } else {
+                userMarker.setLatLng([lat, lng]);
+            }
+            map.panTo([lat, lng]);
+
+            // 只有在散步中才在地圖畫線段
+            if (isWalking) {
+                pathLine.addLatLng([lat, lng]);
+            }
+        }, err => console.log("GPS地圖獲取失敗: ", err), {
+            enableHighAccuracy: true,
+            maximumAge: 0,
+            timeout: 5000
+        });
+    }
+</script>
+
+{% endblock %}

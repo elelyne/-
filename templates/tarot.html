@@ -1,0 +1,376 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+    /* 🎯 完美破除父層限制：寬度、高度、下緣全部吃滿，絕對不漏出灰底 */
+    .js-tarot-fullscreen-breaker {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        /* 💡 讓白底的最小高度直接吃滿整個螢幕視窗 */
+        min-height: 100vh !important; 
+        position: relative;
+        left: calc(-50vw + 50%);
+        background-color: #ffffff !important; 
+        /* 💡 加大底部內襯，確保內容變多時，白底會順著往下拉長 */
+        padding: 2rem 4rem 8rem 4rem !important; 
+        margin-bottom: -100px !important; /* 💡 往下強行延伸，塞滿所有可能露出的縫隙 */
+        box-sizing: border-box !important;
+    }
+
+    /* 內襯包裝器：限制中間內容維持在舒服的 1200px 黃金比例 */
+    .inner-tarot-content {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    body {
+        background-color: #f4f6f9 !important;
+        overflow-x: hidden; /* 防止螢幕水平方向出現滾動條 */
+        /* 💡 確保身體最底端沒有奇怪的留白 */
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+    }
+
+    .tarot-title { color: #6f42c1; font-weight: bold; text-align: center; margin-top: 15px; }
+    
+    /* 🔮 洗牌舞台 */
+    .fan-stage {
+        position: relative;
+        width: 100%;
+        height: 350px; 
+        margin: 20px 0;
+        overflow: hidden;
+        background: radial-gradient(circle, #1a1235 0%, #080514 100%);
+        border-radius: 20px;
+        box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
+    }
+
+    /* 滿版展牌容器 */
+    .fan-deck {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    /* 🃏 卡片基礎樣式 */
+    .card-wrapper {
+        position: absolute;
+        width: 90px;  
+        height: 145px;
+        cursor: pointer;
+        opacity: 0;
+        transform-origin: center center; 
+        
+        left: var(--card-left);
+        top: var(--card-top); 
+        
+        transform: translateY(60px);
+        transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.4s ease, left 0.8s ease, top 0.8s ease;
+    }
+
+    /* 初始化登場：橫向絲滑刷開 */
+    .fan-stage.initialized .card-wrapper {
+        opacity: 1;
+        transform: rotate(var(--deal-deg)) translateY(0);
+    }
+
+    /* 🎯 乾淨的微弧度 Hover 特效 */
+    .card-wrapper:not(.picked-away):hover {
+        transform: rotate(var(--deal-deg)) translateY(-35px) !important;
+    }
+
+    /* 被選中的卡片淡出 */
+    .card-wrapper.picked-away {
+        opacity: 0 !important;
+        pointer-events: none;
+        transform: scale(0.3) translateY(-70px) !important;
+    }
+
+    /* 💡 利用層級陰影，讓牌陣的重疊立體感顯現 */
+    .card-back-main {
+        width: 100%; height: 100%;
+        border-radius: 8px;
+        background-color: #2c164d;
+        background-image: url("{{ url_for('static', filename='images/card_back.png') }}");
+        background-size: cover;
+        background-position: center;
+        border: 1.5px solid #a16eff;
+        box-shadow: -4px 0 8px rgba(0, 0, 0, 0.4); 
+    }
+
+    /* 🎰 下方接收槽位 */
+    .slots-container {
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        margin: 30px 0;
+    }
+
+    .result-slot-container {
+        width: 100px;
+        height: 160px;
+        perspective: 1000px;
+    }
+
+    .slot-inner {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        transform-style: preserve-3d;
+    }
+
+    .result-slot-container.flipped .slot-inner {
+        transform: rotateY(180deg);
+    }
+
+    .slot-front, .slot-back {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 10px;
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+    }
+
+    .slot-back {
+        border: 2px dashed #6f42c1;
+        background: rgba(111, 66, 193, 0.05);
+        color: #9d7cd8;
+        font-size: 0.9rem;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 2;
+    }
+
+    .slot-back.has-card {
+        border: 2px solid #a16eff;
+        background-image: url("{{ url_for('static', filename='images/card_back.png') }}");
+        background-size: cover;
+        background-position: center;
+        color: transparent;
+    }
+
+    .slot-front {
+        background: #2c164d;
+        border: 2px solid #ffd700;
+        box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+        transform: rotateY(180deg);
+        z-index: 1;
+        overflow: hidden;
+    }
+
+    .slot-front img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        display: block !important;
+    }
+
+    .card-title-under {
+        text-align: center;
+        font-size: 1rem;
+        font-weight: bold;
+        color: black !important; 
+        margin-top: 12px;
+        letter-spacing: 1px;
+        min-height: 22px;
+        opacity: 0;
+        transition: opacity 0.6s ease;
+    }
+
+    .card-title-under.show-title {
+        opacity: 1;
+    }
+
+    #ai-box { background: #fbf7ff; border: 1px solid #e8dbff; margin-bottom: 30px; }
+</style>
+
+<div class="js-tarot-fullscreen-breaker" id="js-tarot-fullscreen-breaker">
+    <div class="inner-tarot-content">
+
+        <h4 class="tarot-title">命運占卜</h4>
+        <div class="text-center mb-3">請先在心中默念您的問題~<br>
+            <span id="status-text" class="step-indicator fw-bold text-secondary">正在洗牌中...</span>
+        </div>
+
+        <div class="fan-stage" id="stage">
+            <div class="fan-deck" id="tarot-fan-deck"></div>
+        </div>
+
+        <div class="slots-container">
+            <div>
+                <div class="result-slot-container" id="container-0">
+                    <div class="slot-inner">
+                        <div class="slot-back" id="slot-0">過去</div>
+                        <div class="slot-front" id="front-0"></div>
+                    </div>
+                </div>
+                <div class="card-title-under" id="title-0"></div>
+            </div>
+
+            <div>
+                <div class="result-slot-container" id="container-1">
+                    <div class="slot-inner">
+                        <div class="slot-back" id="slot-1">現在</div>
+                        <div class="slot-front" id="front-1"></div>
+                    </div>
+                </div>
+                <div class="card-title-under" id="title-1"></div>
+            </div>
+
+            <div>
+                <div class="result-slot-container" id="container-2">
+                    <div class="slot-inner">
+                        <div class="slot-back" id="slot-2">未來</div>
+                        <div class="slot-front" id="front-2"></div>
+                    </div>
+                </div>
+                <div class="card-title-under" id="title-2"></div>
+            </div>
+        </div>
+
+        <div id="ai-box" class="card p-3 d-none">
+            <h6 class="fw-bold" style="color: #6f42c1;">占卜師深度解牌：</h6>
+            <p id="ai-analysis" class="small text-dark" style="line-height: 1.6; white-space: pre-line;"></p>
+            
+            <div class="row g-2 mt-2">
+                <div class="col-6">
+                    <button class="btn btn-sm btn-outline-primary w-100" onclick="window.location.reload()">重新洗牌占卜 🔄</button>
+                </div>
+                <div class="col-6">
+                    <a href="/lobby" class="btn btn-sm btn-primary w-100 text-white">返回測驗大廳 🏠</a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // 滿版背景與高度控制（強力清除外層父容器的所有間距限制）
+    const breakerStage = document.getElementById('js-tarot-fullscreen-breaker');
+    if (breakerStage) {
+        let parent = breakerStage.parentElement;
+        while (parent && parent.tagName !== 'BODY') {
+            // 💡 清除所有可能阻礙白底往下延伸的 padding、margin 與高度限制
+            parent.style.background = 'transparent';
+            parent.style.border = 'none';
+            parent.style.boxShadow = 'none';
+            parent.style.padding = '0';
+            parent.style.margin = '0';
+            parent.style.height = 'auto';
+            parent.style.minHeight = 'auto';
+            parent.style.maxWidth = '100%';
+            parent.style.width = '100%';
+            parent = parent.parentElement;
+        }
+    }
+
+    const stage = document.getElementById('stage');
+    const fanDeck = document.getElementById('tarot-fan-deck');
+    const statusText = document.getElementById('status-text');
+    
+    // 36 張密集大牌陣
+    const totalCards = 36; 
+    let selectedCount = 0;
+
+    const startLeft = 4;  
+    const endLeft = 90;   
+    const leftStep = (endLeft - startLeft) / (totalCards - 1);
+
+    // 完美微拱角度與高度
+    const startAngle = -14; 
+    const endAngle = 14;
+    const angleStep = (endAngle - startAngle) / (totalCards - 1);
+    const baseTop = 75; 
+
+    for (let i = 0; i < totalCards; i++) {
+        const currentLeft = startLeft + (i * leftStep);
+        const currentAngle = startAngle + (i * angleStep);
+        
+        const midPoint = (totalCards - 1) / 2;
+        const curveOffset = 0.14 * Math.pow(i - midPoint, 2); 
+        const currentTop = baseTop + curveOffset;
+
+        const cardHtml = `
+            <div class="card-wrapper" data-id="${i}" style="--card-left: ${currentLeft}%; --card-top: ${currentTop}px; --deal-deg: ${currentAngle}deg; z-index: ${i};">
+                <div class="card-back-main"></div>
+            </div>
+        `;
+        fanDeck.insertAdjacentHTML('beforeend', cardHtml);
+    }
+
+    // 登場動畫
+    const cards = document.querySelectorAll('.card-wrapper');
+    setTimeout(() => {
+        stage.classList.add('initialized');
+        cards.forEach((card, index) => {
+            card.style.transitionDelay = `${index * 0.025}s`; 
+        });
+        setTimeout(() => {
+            statusText.innerText = "請憑直覺挑選第 1 張牌 (過去)";
+            cards.forEach(card => card.style.transitionDelay = '0s');
+        }, 1200);
+    }, 300);
+
+    // 點擊卡片邏輯
+    cards.forEach(card => {
+        card.addEventListener('click', () => {
+            if (card.classList.contains('picked-away') || selectedCount >= 3) return;
+
+            const currentOrder = selectedCount;
+            selectedCount++;
+
+            card.classList.add('picked-away');
+            document.getElementById(`slot-${currentOrder}`).classList.add('has-card');
+
+            if (selectedCount === 1) statusText.innerText = "請挑選第 2 張牌 (現在)";
+            if (selectedCount === 2) statusText.innerText = "請挑選第 3 張牌 (未來)";
+            if (selectedCount === 3) {
+                statusText.innerText = "🔮 正在接收 AI 靈感...";
+                fetchAndFlipResult();
+            }
+        });
+    });
+
+    function fetchAndFlipResult() {
+        fetch('/tarot', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const baseUrl = window.location.origin;
+                for (let order = 0; order < 3; order++) {
+                    const slotFront = document.getElementById('front-' + order);
+                    const cardName = data.cards[order].trim();
+                    const finalImgUrl = baseUrl + '/static/images/' + encodeURIComponent(cardName) + '.png';
+
+                    slotFront.innerHTML = '<img src="' + finalImgUrl + '" alt="' + cardName + '">';
+
+                    setTimeout(() => {
+                        document.getElementById('container-' + order).classList.add('flipped');
+                        
+                        const titleDiv = document.getElementById('title-' + order);
+                        if (titleDiv) {
+                            titleDiv.innerText = cardName;
+                            titleDiv.classList.add('show-title');
+                        }
+                    }, 400 + (order * 350));
+                }
+
+                setTimeout(() => {
+                    document.getElementById('ai-analysis').innerText = data.analysis;
+                    document.getElementById('ai-box').classList.remove('d-none');
+                    statusText.innerText = "🔮 占卜完成！";
+                }, 1800);
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

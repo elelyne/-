@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    /* ==========================================================================
+       🎨 註冊頁面：強制置中與防炸開對策
+       ========================================================================== */
+    .register-page-container {
+        min-height: 80vh; /* 確保有足夠的高度可以垂直置中 */
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 40px 20px;
+    }
+
+    .register-glass-card {
+        background: var(--card-bg, rgba(255, 255, 255, 0.75)) !important;
+        backdrop-filter: blur(12px) saturate(180%);
+        -webkit-backdrop-filter: blur(12px) saturate(180%);
+        border: 1px solid var(--border-color, rgba(255, 255, 255, 0.5)) !important;
+        border-radius: 24px !important;
+        padding: 40px;
+        width: 100% !important;
+        max-width: 460px !important; /* 🎯 關鍵防線：鎖死寬度，絕對不讓它橫向炸開！ */
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
+        box-sizing: border-box;
+    }
+
+    /* 輸入框：維持圓角軟萌風格 */
+    .custom-input {
+        background: #ffffff !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        border-radius: 16px !important;
+        padding: 12px 16px !important;
+        color: var(--text-color, #1e293b) !important;
+        font-size: 15px;
+    }
+
+    .custom-input:focus {
+        border-color: #6f42c1 !important;
+        box-shadow: 0 0 0 4px rgba(111, 66, 193, 0.15) !important;
+    }
+
+    /* 按鈕：改用和登入頁一樣好看的紫色調 */
+    .custom-btn-submit {
+        background: #6f42c1 !important;
+        border: none !important;
+        color: #ffffff !important;
+        font-weight: bold !important;
+        border-radius: 16px !important;
+        padding: 12px !important;
+        font-size: 16px;
+        transition: all 0.2s ease;
+    }
+
+    .custom-btn-submit:hover {
+        background: #5a32a3 !important;
+        transform: translateY(-1px);
+    }
+</style>
+
+<div class="container register-page-container">
+    <div class="register-glass-card text-center">
+        
+        <h2 class="fw-bold mb-2" style="color: var(--text-color, #1e293b);">✨ 建立新身分</h2>
+        <p class="text-muted small mb-4">開啟你的身心健康養成之旅</p>
+
+        <form action="/register" method="POST" class="text-start">
+            
+            <div class="mb-3">
+                <label class="form-label small fw-bold opacity-75">帳號 (登入使用)</label>
+                <input type="text" name="username" class="form-control custom-input" placeholder="設定你的帳號" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label small fw-bold opacity-75">密碼</label>
+                <input type="password" name="password" class="form-control custom-input" placeholder="設定安全密碼" required>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label small fw-bold opacity-75">用戶名 (大廳暱稱)</label>
+                <input type="text" name="nickname" class="form-control custom-input" placeholder="你想被怎麼稱呼？" required>
+            </div>
+
+            <button type="submit" class="btn custom-btn-submit w-100">完成並創立</button>
+
+        </form>
+
+        <div class="mt-4 small">
+            <span class="opacity-75">已有帳號？</span>
+            <a href="/login" class="fw-bold text-decoration-none" style="color: #6f42c1;">返回登入</a>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
